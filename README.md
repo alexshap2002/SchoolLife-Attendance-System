@@ -1,344 +1,287 @@
-# 🏫 Школа життя - Система обліку відвідуваності
-
-Система автоматизованого обліку відвідуваності для дитячої програми "Школа життя" з Telegram ботом, веб-адмінкою та інтеграцією з Google Sheets.
-
-## 🚀 Основні можливості
-
-- **Автоматичний облік відвідуваності** через Telegram бот
-- **Веб-адмінка** для управління учнями, вчителями, гуртками
-- **Розрахунок зарплати** вчителів (за заняття або за присутніх)
-- **Експорт в Google Sheets** з автоматичною синхронізацією
-- **Імпорт учнів** з XLSX/CSV файлів (українські назви колонок)
-- **Автоматичні нагадування** вчителям про незбережену відвідуваність
-
-## 🏗️ Архітектура
-
-- **Backend**: FastAPI + SQLAlchemy 2.0 (async) + PostgreSQL
-- **Bot**: aiogram v3
-- **Scheduler**: APScheduler з часовою зоною Europe/Kyiv
-- **Frontend**: Server-side rendering з Jinja2 + Bootstrap
-- **Deploy**: Docker + docker-compose + Caddy (HTTPS)
-- **Export**: Google Sheets API
-
-## 📋 Встановлення
-
-### 1. Підготовка
-
-```bash
-git clone <repository-url>
-cd "TG bot School of life"
-make setup
-```
-
-### 2. Налаштування
-
-#### 2.1 Telegram Bot
-1. Створіть бота через [@BotFather](https://t.me/botfather)
-2. Отримайте токен і додайте в `.env`:
-```bash
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-```
-
-#### 2.2 Google Sheets
-1. Створіть проєкт в [Google Cloud Console](https://console.cloud.google.com/)
-2. Увімкніть Google Sheets API та Google Drive API
-3. Створіть Service Account і завантажте JSON ключ
-4. Помістіть файл як `creds/service_account.json`
-5. Створіть Google Spreadsheet і поділіться з email Service Account
-6. Додайте ID таблиці в `.env`:
-```bash
-SHEETS_SPREADSHEET_ID=your_spreadsheet_id_here
-```
-
-#### 2.3 Налаштування .env
-Відредагуйте файл `.env`:
-```bash
-# Environment
-ENV=dev
-TZ=Europe/Kyiv
-
-# Database  
-POSTGRES_DB=schoola
-POSTGRES_USER=schoola
-POSTGRES_PASSWORD=your_secure_password
-
-# Security
-SECRET_KEY=your_very_secure_secret_key_here
-
-# Telegram Bot
-TELEGRAM_BOT_TOKEN=your_bot_token
-
-# Google Sheets
-SHEETS_SPREADSHEET_ID=your_spreadsheet_id
-GOOGLE_SERVICE_ACCOUNT_JSON_PATH=/app/creds/service_account.json
-
-# Admin
-ADMIN_EMAIL=admin@schoola.local
-ADMIN_PASSWORD=your_admin_password
-```
-
-### 3. Запуск
-
-```bash
-# Запуск всіх сервісів
-make run
-
-# Або окремо
-docker compose up --build
-```
-
-### 4. Ініціалізація
-
-```bash
-# Застосувати міграції
-make migrate
-
-# Додати тестові дані (опціонально)
-make seed
-```
-
-## 📖 Використання
-
-### Адмін-панель
-Відкрийте http://localhost/admin/ і увійдіть з:
-- Email: `admin@schoola.local` 
-- Пароль: `admin123` (або ваш з .env)
-
-### API Документація
-Доступна за адресою: http://localhost/docs
-
-### Telegram Bot
-1. Вчителі натискають `/start` для реєстрації
-2. В час заняття бот автоматично надсилає чек-лист
-3. Вчитель відмічає присутніх і натискає "Зберегти"
-4. Через 15 хвилин приходить нагадування, якщо не збережено
-
-## 📊 Імпорт даних
-
-### Формат XLSX/CSV для учнів
-Підтримувані колонки (українською):
-- `Ім'я дитини:` → first_name
-- `Прізвище дитини:` → last_name  
-- `День народження дитини:` → birth_date
-- `Вік:` → age
-- `Клас у школі:` → grade
-- `Телефон дитини:` → phone_child
-- `Місце проживання:` → location
-- `Адреса проживання:` → address
-- `ПІБ батька/матері` → parent_name
-- `Телефон матері:` → phone_mother
-- `Телефон батька:` → phone_father
-- `Яку пільгу ви маєте:*` → benefits_json
-
-### Імпорт через API
-```bash
-curl -X POST "http://localhost/api/import/xlsx" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -F "file=@students.xlsx"
-```
-
-## 🔧 Розробка
-
-### Команди для розробки
-
-```bash
-# Перегляд логів
-make logs
-
-# Форматування коду
-make format
-
-# Лінтинг
-make lint
-
-# Тести
-make test
-
-# Оболонка в контейнері
-make shell
-
-# База даних
-make db-shell
-
-# Створення міграції
-make migrate-create
-
-# Бекап БД
-make backup-db
-
-# Відновлення БД
-make restore-db FILE=backup.sql
-```
-
-### Структура проєкту
-
-```
-app/
-├── core/           # Конфігурація, БД, безпека
-├── models/         # SQLAlchemy моделі
-├── api/           # FastAPI роутери
-├── services/      # Бізнес-логіка
-├── bot/           # Telegram бот
-├── web/           # Веб-інтерфейс
-└── main.py        # Головний файл
-
-alembic/           # Міграції БД
-scripts/           # Допоміжні скрипти
-creds/            # Файли аутентифікації
-```
-
-## 📈 Моніторинг
-
-### Health Check
-```bash
-curl http://localhost/health
-```
-
-### Логи
-```bash
-# Всі сервіси
-docker compose logs -f
-
-# Тільки додаток
-docker compose logs -f app
-
-# База даних
-docker compose logs -f db
-```
-
-## 🔒 Безпека
-
-- JWT токени для API
-- HTTPS через Caddy
-- Валідація власності занять в боті
-- Аудит всіх змін в `audit_log`
-- Захищені API ендпоінти (тільки для адмінів)
-
-## 🐛 Усунення неполадок
-
-### Бот не відповідає
-1. Перевірте `TELEGRAM_BOT_TOKEN` в `.env`
-2. Переконайтеся, що бот запущений: `docker compose logs app`
-3. Перевірте, що вчитель натиснув `/start`
-
-### Google Sheets не оновлюється  
-1. Перевірте `service_account.json` в `creds/`
-2. Переконайтеся, що Service Account має доступ до таблиці
-3. Перевірте `SHEETS_SPREADSHEET_ID`
-
-### База даних недоступна
-```bash
-# Перевірити стан
-docker compose ps
-
-# Перезапустити БД
-docker compose restart db
-
-# Перевірити логи
-docker compose logs db
-```
-
-### Проблеми з міграціями
-```bash
-# Скинути БД і застосувати міграції заново
-make clean
-make run
-make migrate
-```
-
-## 📝 TODO / Майбутні покращення
-
-- [ ] Мобільний додаток для батьків
-- [ ] SMS нотифікації
-- [ ] Розширена аналітика відвідуваності
-- [ ] Інтеграція з платіжними системами
-- [ ] Багатомовність (англійська)
-- [ ] Експорт звітів в PDF
-
-## 🤝 Внесок
-
-1. Fork репозиторій
-2. Створіть feature branch (`git checkout -b feature/amazing-feature`)
-3. Зробіть commit (`git commit -m 'Add amazing feature'`)
-4. Push в branch (`git push origin feature/amazing-feature`)
-5. Створіть Pull Request
-
-## 📄 Ліцензія
-
-MIT License - деталі в файлі `LICENSE`
-
-## 🤖 Тестування Telegram бота
-
-### Швидкий тест
-```bash
-# Інтерактивний скрипт тестування
-./test_bot.sh
-
-# Або створити lesson_event вручну
-docker exec school-db psql -U school_user -d school_db -c "
-INSERT INTO lesson_events (schedule_id, date, club_id, teacher_id, teacher_chat_id, status, start_at, notify_at, send_attempts) 
-SELECT s.id, CURRENT_DATE, s.club_id, s.teacher_id, t.tg_chat_id, 'PLANNED', 
-       NOW() + INTERVAL '5 minutes', NOW() + INTERVAL '1 minute', 0
-FROM schedules s 
-JOIN teachers t ON t.id = s.teacher_id
-WHERE s.active = true AND t.tg_chat_id IS NOT NULL
-LIMIT 1;"
-```
-
-### Діагностика проблем
-```bash
-# Логи dispatcher
-docker logs school-dispatcher --tail 20
-
-# Перевірка lesson_events
-docker exec school-db psql -U school_user -d school_db -c "
-SELECT le.id, le.status, c.name 
-FROM lesson_events le 
-JOIN clubs c ON c.id = le.club_id 
-WHERE le.date >= CURRENT_DATE 
-ORDER BY le.notify_at DESC LIMIT 5;"
-
-# Перевірка студентів та enrollments
-docker exec school-db psql -U school_user -d school_db -c "
-SELECT s.first_name, s.last_name, c.name 
-FROM students s 
-JOIN enrollments e ON s.id = e.student_id 
-JOIN clubs c ON c.id = e.club_id;"
-```
-
-**📖 Детальний гайд**: [TELEGRAM_BOT_TESTING_GUIDE.md](./TELEGRAM_BOT_TESTING_GUIDE.md)
-
-## 🐛 Основні проблеми та рішення
-
-### 1. Бот не надсилає повідомлення
-- Перевірити логи: `docker logs school-dispatcher --tail 20`
-- Перевірити lesson_events: має бути `status='PLANNED'` та `notify_at` в минулому
-- Перевірити активні розклади: `s.active = true`
-- **Перевірити teacher_chat_id**: `SELECT id, teacher_chat_id FROM lesson_events WHERE teacher_chat_id IS NULL`
-
-### 2. Кнопки не змінюють статус
-- Перевірити constraint: `attendance_lesson_student_unique` має існувати
-- Перевірити enrollments: студенти мають бути записані на гурток
-- Перевірити імпорти в dispatcher.py: `Enrollment` має бути імпортований
-
-### 3. Немає студентів у повідомленні
-- Перевірити enrollments: `SELECT * FROM enrollments WHERE club_id = X`
-- Додати студентів: `INSERT INTO enrollments (student_id, club_id) VALUES (X, Y)`
-
-### 4. Dispatcher не запускається
-```bash
-# Перезапуск
-docker restart school-dispatcher
-
-# Повний перезапуск системи
-docker-compose -f docker-compose.local.yml down
-docker-compose -f docker-compose.local.yml up -d
-```
-
-## 💬 Підтримка
-
-Для питань та підтримки створіть Issue в репозиторії або зв'яжіться з командою розробки.
+# 🎓 SchoolLife Attendance System
+
+> Full-featured attendance tracking system for children's educational programs with Telegram bot, web admin panel, and Google Sheets integration
+
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
-**Школа життя** - допомагаємо дітям рости і розвиватися! 🌟
+## 📋 Table of Contents
+
+- [About](#-about)
+- [Key Features](#-key-features)
+- [Tech Stack](#-tech-stack)
+- [Installation](#-installation)
+- [Project Structure](#-project-structure)
+- [API Documentation](#-api-documentation)
+- [Screenshots](#-screenshots)
+- [Contact](#-contact)
+
+---
+
+## 🎯 About
+
+**SchoolLife Attendance System** is a comprehensive web-based management system for children's educational programs, designed to automate:
+
+- 📊 Student attendance tracking
+- 👥 Student and teacher database management
+- 📅 Class scheduling
+- 💰 Teacher payroll calculations
+- 📱 Telegram bot for quick check-ins
+- 📈 Analytics and reporting
+- 🔍 Complete audit trail of all actions
+
+The system was created for **"School of Life"** — a children's educational program in Brovary, Ukraine.
+
+---
+
+## ✨ Key Features
+
+### 🎨 Web Interface (Admin Panel)
+
+- **📊 Dashboard** — real-time statistics
+- **👥 Student Database** — complete information about children and parents
+- **👨‍🏫 Teacher Database** — contacts, salary, statistics
+- **🎭 Clubs** — activity management
+- **📅 Schedule** — flexible class planning
+- **✅ Attendance** — quick presence tracking
+- **💵 Payroll** — automatic salary calculations
+- **📈 Analytics** — KPIs, charts, trends
+- **🔍 Change History** — complete audit log
+
+### 📱 Telegram Bot
+
+- **⚡ Quick Check-ins** — mark attendance in 10 seconds
+- **🔔 Automatic Reminders** — 10 minutes before class
+- **📊 Statistics** — instant reports
+- **🤖 Bot Schedule** — automated schedule-based reminders
+
+### 🔧 Technical Features
+
+- **🐳 Docker** — full containerization
+- **🔄 Automation** — scheduler for recurring tasks
+- **📊 Google Sheets** — data export
+- **🔐 JWT Authorization** — secure access
+- **📝 Audit Log** — logging of all actions
+- **⚡ AsyncIO** — asynchronous processing
+
+---
+
+## 🛠 Tech Stack
+
+### Backend
+
+- **[FastAPI](https://fastapi.tiangolo.com/)** — modern web framework
+- **[SQLAlchemy 2.0](https://www.sqlalchemy.org/)** — ORM with async support
+- **[Alembic](https://alembic.sqlalchemy.org/)** — database migrations
+- **[Pydantic](https://pydantic.dev/)** — data validation
+- **[aiogram 3.0](https://docs.aiogram.dev/)** — Telegram Bot framework
+- **[APScheduler](https://apscheduler.readthedocs.io/)** — task scheduler
+- **[gspread](https://gspread.readthedocs.io/)** — Google Sheets API
+
+### Frontend
+
+- **[React](https://react.dev/)** + **[TypeScript](https://www.typescriptlang.org/)** — Telegram WebApp
+- **[Vite](https://vitejs.dev/)** — fast build tool
+- **[Tailwind CSS](https://tailwindcss.com/)** — utility-first CSS
+- **[Bootstrap 5](https://getbootstrap.com/)** — admin panel
+
+### Infrastructure
+
+- **[PostgreSQL 16](https://www.postgresql.org/)** — database
+- **[Docker](https://www.docker.com/)** + **Docker Compose** — containerization
+- **[Nginx](https://nginx.org/)** — web server for WebApp
+- **[Uvicorn](https://www.uvicorn.org/)** — ASGI server
+
+---
+
+## 🚀 Installation
+
+### Requirements
+
+- **Docker** 20.10+
+- **Docker Compose** 2.0+
+- **Python** 3.11+ (for local development)
+- **Node.js** 18+ (for WebApp development)
+
+### Quick Start
+
+1. **Clone the repository:**
+
+```bash
+git clone https://github.com/alexshap2002/SchoolLife-Attendance-System.git
+cd SchoolLife-Attendance-System
+```
+
+2. **Create `.env` file:**
+
+```bash
+cp env.example .env
+# Edit .env — add your tokens and passwords
+```
+
+3. **Run with Docker:**
+
+```bash
+docker-compose -f docker-compose.local.yml up -d
+```
+
+4. **Open admin panel:**
+
+```
+http://localhost:8000/admin/
+```
+
+**Login:** `admin@schoola.local`  
+**Password:** `admin123` (change after first login!)
+
+---
+
+### Detailed Instructions
+
+See [LOCAL_SETUP_README.md](LOCAL_SETUP_README.md) for complete setup guide.
+
+---
+
+## 📁 Project Structure
+
+```
+SchoolLife-Attendance-System/
+├── app/                          # Main application code
+│   ├── api/                      # API endpoints
+│   │   ├── public.py            # Public API (students, teachers, clubs)
+│   │   ├── attendance.py        # Attendance API
+│   │   ├── payroll.py           # Payroll API
+│   │   ├── audit.py             # Audit log API
+│   │   └── ...
+│   ├── bot/                      # Telegram Bot
+│   │   ├── handlers.py          # Command handlers
+│   │   ├── quick_attendance.py  # Quick check-ins
+│   │   └── unified_attendance.py # Unified check-ins
+│   ├── core/                     # System core
+│   │   ├── database.py          # Database connection
+│   │   ├── settings.py          # Configuration
+│   │   └── security.py          # Authorization
+│   ├── models/                   # SQLAlchemy models
+│   ├── services/                 # Business logic
+│   │   ├── attendance_service.py
+│   │   ├── payroll_service.py
+│   │   ├── audit_service.py
+│   │   └── ...
+│   ├── web/                      # Web interface
+│   │   ├── templates/           # HTML templates
+│   │   └── static/              # CSS, JS
+│   └── workers/                  # Background workers
+│       ├── dispatcher.py        # Telegram dispatcher
+│       └── automation_scheduler.py
+├── webapp/                       # React WebApp (Telegram)
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── utils/
+│   └── ...
+├── alembic/                      # Database migrations
+├── scripts/                      # Utility scripts
+├── docs/                         # Documentation
+├── docker-compose.local.yml      # Docker for local development
+├── docker-compose.server.yml     # Docker for production
+└── requirements.txt              # Python dependencies
+```
+
+---
+
+## 📖 API Documentation
+
+After running the application, API documentation is available at:
+
+- **Swagger UI:** `http://localhost:8000/docs`
+- **ReDoc:** `http://localhost:8000/redoc`
+
+### Main Endpoints
+
+```
+GET    /health                    # Health check
+POST   /auth/login                # Authentication
+GET    /api/students              # List students
+POST   /api/students              # Create student
+GET    /api/teachers              # List teachers
+GET    /api/clubs                 # List clubs
+GET    /api/schedules             # Schedule
+GET    /api/attendance            # Attendance
+POST   /api/payroll/calculate     # Calculate payroll
+GET    /api/audit                 # Audit log
+```
+
+---
+
+## 📊 Screenshots
+
+### Admin Panel
+*(Add screenshots after deployment)*
+
+- Dashboard with KPIs
+- Student table
+- Attendance calendar
+- Teacher statistics
+
+### Telegram Bot
+*(Add bot screenshots)*
+
+- Quick check-ins
+- Automatic reminders
+- Real-time statistics
+
+---
+
+## 🔒 Security
+
+**⚠️ IMPORTANT:** Before deployment, read [SECURITY.md](SECURITY.md)
+
+- Never commit `.env` files
+- Use strong passwords
+- Regularly update tokens
+- Enable HTTPS on production
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+---
+
+## 📝 License
+
+[MIT License](LICENSE) — free to use with attribution.
+
+---
+
+## 👨‍💻 Author
+
+**Oleksandr Shapovalov**
+
+- 📧 Email: aleks.shap2002@gmail.com
+- 💼 GitHub: [@alexshap2002](https://github.com/alexshap2002)
+- 🔗 LinkedIn: [in/alexandr-shapovalov](https://linkedin.com/in/alexandr-shapovalov)
+
+---
+
+## 🌟 Acknowledgments
+
+- **"School of Life"** for the opportunity to create this project
+- **FastAPI** and **aiogram** communities for excellent frameworks
+- Everyone who uses and improves this system
+
+---
+
+<div align="center">
+  
+**Made with ❤️ in Ukraine 🇺🇦**
+
+_If this project was helpful — give it a ⭐ on GitHub!_
+
+</div>
