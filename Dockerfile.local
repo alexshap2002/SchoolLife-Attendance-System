@@ -1,0 +1,31 @@
+FROM python:3.11-slim
+
+# Встановлюємо системні залежності
+RUN apt-get update && apt-get install -y \
+    curl \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Створюємо робочу директорію
+WORKDIR /app
+
+# Копіюємо файли залежностей
+COPY requirements.txt .
+
+# Встановлюємо Python залежності
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Копіюємо код додатку
+COPY . .
+
+# Створюємо необхідні директорії
+RUN mkdir -p /app/logs /app/app/web/static
+
+# Встановлюємо права доступу
+RUN chmod +x /app/scripts/*.sh 2>/dev/null || true
+
+# Експонуємо порти
+EXPOSE 8000 3001
+
+# За замовчуванням запускаємо веб-сервер
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

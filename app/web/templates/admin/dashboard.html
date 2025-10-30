@@ -1,0 +1,1153 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>🏠 Панель адміністратора</h2>
+    <div class="text-muted">
+        <i class="bi bi-clock"></i> Оновлено: {{ current_time.strftime('%d.%m.%Y %H:%M') if current_time else 'Зараз' }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Учні
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.students }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-people fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Вчителі
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.teachers }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-person-badge fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Гуртки
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.clubs }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-collection fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Активні заняття
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ stats.schedules }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-calendar3 fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Швидкі дії</h6>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="/admin/students" class="list-group-item list-group-item-action">
+                        <i class="bi bi-plus-circle"></i>
+                        Додати нового учня
+                    </a>
+                    <a href="/admin/teachers" class="list-group-item list-group-item-action">
+                        <i class="bi bi-person-plus"></i>
+                        Додати нового вчителя
+                    </a>
+                    <a href="/admin/clubs" class="list-group-item list-group-item-action">
+                        <i class="bi bi-plus-square"></i>
+                        Створити новий гурток
+                    </a>
+                    <a href="/admin/attendance" class="list-group-item list-group-item-action">
+                        <i class="bi bi-check2-square"></i>
+                        Переглянути відвідуваність
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Останні дії</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <i class="bi bi-info-circle fa-2x text-gray-300 mb-3"></i>
+                    <p class="text-muted">Тут будуть відображатися останні дії в системі</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 📊 СЕКЦІЯ З 10 КРАСИВИМИ ДІАГРАМАМИ -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-bar-chart-fill"></i> 📊 Звіти та аналітика
+                </h6>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshAllCharts()">
+                    <i class="bi bi-arrow-clockwise"></i> Оновити всі діаграми
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ряд 1: Кругові діаграми -->
+<div class="row">
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-pie-chart-fill"></i> 🎯 Розподіл учнів по гуртках
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="studentsClubsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-success">
+                    <i class="bi bi-pie-chart"></i> 🎓 Розподіл по класах
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="studentsGradeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-info">
+                    <i class="bi bi-pie-chart-fill"></i> 🎯 Загальна відвідуваність
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="overallAttendanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ряд 2: Стовпчасті діаграми -->
+<div class="row">
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-warning">
+                    <i class="bi bi-bar-chart-fill"></i> 📊 Активність вчителів
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 350px;">
+                    <canvas id="teacherActivityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-secondary">
+                    <i class="bi bi-calendar-week"></i> 📅 Уроки по днях тижня
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 350px;">
+                    <canvas id="weekdayLessonsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ряд 3: Лінійні діаграми -->
+<div class="row">
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-graph-up"></i> 📈 Динаміка відвідуваності
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 350px;">
+                    <canvas id="attendanceTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-success">
+                    <i class="bi bi-cash-stack"></i> 💸 Динаміка зарплат
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 350px;">
+                    <canvas id="salaryTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ряд 4: Дещо особливіші діаграми -->
+<div class="row">
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-danger">
+                    <i class="bi bi-currency-dollar"></i> 💰 Розподіл зарплат
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="salaryDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-dark">
+                    <i class="bi bi-geo-alt-fill"></i> 📍 По населених пунктах
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="locationChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-warning">
+                    <i class="bi bi-trophy-fill"></i> 🏆 Топ учні
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="topStudentsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ряд 5: Графіки вразливості -->
+<div class="row">
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-danger">
+                    <i class="bi bi-shield-exclamation"></i> 🔒 Розподіл по критеріям вразливості
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 350px;">
+                    <canvas id="vulnerabilityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 col-md-12 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-info">
+                    <i class="bi bi-bar-chart-fill"></i> 🏠 Детальна статистика пільг
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="position: relative; height: 350px;">
+                    <canvas id="benefitsDetailChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js CDN та JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 📊 Глобальні змінні для зберігання діаграм
+let chartsInstances = {};
+
+// 🎨 Красиві кольори для діаграм
+const colorPalettes = {
+    primary: ['#007bff', '#6610f2', '#6f42c1', '#e83e8c', '#dc3545', '#fd7e14', '#ffc107', '#28a745', '#20c997', '#17a2b8'],
+    warm: ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#00d2d3', '#ff9f43', '#10ac84', '#ee5a24'],
+    cool: ['#0abde3', '#006ba6', '#0c2461', '#9980FA', '#badc58', '#f0932b', '#eb4d4b', '#6ab04c', '#22a6b3', '#be2edd'],
+    pastel: ['#ff7675', '#74b9ff', '#a29bfe', '#fd79a8', '#fdcb6e', '#e17055', '#00b894', '#e84393', '#2d3436', '#636e72']
+};
+
+// 🚀 Завантаження та ініціалізація всіх діаграм
+async function initializeAllCharts() {
+    try {
+        console.log('📊 Завантажую дані для діаграм...');
+        
+        const response = await fetch('/api/dashboard/charts');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const chartsData = await response.json();
+        console.log('✅ Дані отримано:', chartsData);
+        
+        // Ініціалізуємо кожну діаграму
+        initStudentsClubsChart(chartsData.students_by_clubs);
+        initStudentsGradeChart(chartsData.students_by_grade);
+        initOverallAttendanceChart(chartsData.overall_attendance);
+        initTeacherActivityChart(chartsData.teacher_activity);
+        initWeekdayLessonsChart(chartsData.lessons_by_weekday);
+        initAttendanceTrendChart(chartsData.attendance_trend);
+        initSalaryTrendChart(chartsData.salary_trend);
+        initSalaryDistributionChart(chartsData.salary_distribution);
+        initLocationChart(chartsData.students_by_location);
+        initTopStudentsChart(chartsData.top_students);
+        
+        // 🔒 Ініціалізація графіків вразливості
+        if (chartsData.students_by_vulnerability && chartsData.benefits_detailed) {
+            await initVulnerabilityCharts();
+        } else {
+            console.warn('⚠️ Дані вразливості відсутні в API');
+        }
+        
+        console.log('🎉 Всі діаграми ініціалізовано!');
+        
+    } catch (error) {
+        console.error('❌ Помилка завантаження діаграм:', error);
+        showChartsError(error.message);
+    }
+}
+
+// 1. 🎯 Розподіл учнів по гуртках (кругова)
+function initStudentsClubsChart(data) {
+    const ctx = document.getElementById('studentsClubsChart').getContext('2d');
+    
+    if (chartsInstances.studentsClubs) {
+        chartsInstances.studentsClubs.destroy();
+    }
+    
+    chartsInstances.studentsClubs = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                data: data.data,
+                backgroundColor: colorPalettes.primary,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 2. 🎓 Розподіл по класах (кругова)
+function initStudentsGradeChart(data) {
+    const ctx = document.getElementById('studentsGradeChart').getContext('2d');
+    
+    if (chartsInstances.studentsGrade) {
+        chartsInstances.studentsGrade.destroy();
+    }
+    
+    chartsInstances.studentsGrade = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                data: data.data,
+                backgroundColor: colorPalettes.warm,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 3. 🎯 Загальна відвідуваність (кругова)
+function initOverallAttendanceChart(data) {
+    const ctx = document.getElementById('overallAttendanceChart').getContext('2d');
+    
+    if (chartsInstances.overallAttendance) {
+        chartsInstances.overallAttendance.destroy();
+    }
+    
+    chartsInstances.overallAttendance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                data: data.data,
+                backgroundColor: ['#28a745', '#dc3545'],
+                borderWidth: 3,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 4. 📊 Активність вчителів (стовпчаста)
+function initTeacherActivityChart(data) {
+    const ctx = document.getElementById('teacherActivityChart').getContext('2d');
+    
+    if (chartsInstances.teacherActivity) {
+        chartsInstances.teacherActivity.destroy();
+    }
+    
+    chartsInstances.teacherActivity = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                {
+                    label: 'Кількість уроків',
+                    data: data.lessons,
+                    backgroundColor: '#007bff',
+                    borderColor: '#0056b3',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Всього учнів навчено',
+                    data: data.students,
+                    backgroundColor: '#28a745',
+                    borderColor: '#1e7e34',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+}
+
+// 5. 📅 Уроки по днях тижня (стовпчаста)
+function initWeekdayLessonsChart(data) {
+    const ctx = document.getElementById('weekdayLessonsChart').getContext('2d');
+    
+    if (chartsInstances.weekdayLessons) {
+        chartsInstances.weekdayLessons.destroy();
+    }
+    
+    chartsInstances.weekdayLessons = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: 'Кількість уроків',
+                data: data.data,
+                backgroundColor: colorPalettes.cool,
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+// 6. 📈 Динаміка відвідуваності (лінійна)
+function initAttendanceTrendChart(data) {
+    const ctx = document.getElementById('attendanceTrendChart').getContext('2d');
+    
+    if (chartsInstances.attendanceTrend) {
+        chartsInstances.attendanceTrend.destroy();
+    }
+    
+    chartsInstances.attendanceTrend = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: 'Відвідуваність (%)',
+                data: data.data,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+}
+
+// 7. 💸 Динаміка зарплат (лінійна)
+function initSalaryTrendChart(data) {
+    const ctx = document.getElementById('salaryTrendChart').getContext('2d');
+    
+    if (chartsInstances.salaryTrend) {
+        chartsInstances.salaryTrend.destroy();
+    }
+    
+    chartsInstances.salaryTrend = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: 'Зарплата (грн)',
+                data: data.data,
+                borderColor: '#28a745',
+                backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString('uk-UA') + ' грн';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+}
+
+// 8. 💰 Розподіл зарплат (кільцева)
+function initSalaryDistributionChart(data) {
+    const ctx = document.getElementById('salaryDistributionChart').getContext('2d');
+    
+    if (chartsInstances.salaryDistribution) {
+        chartsInstances.salaryDistribution.destroy();
+    }
+    
+    chartsInstances.salaryDistribution = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                data: data.data,
+                backgroundColor: colorPalettes.pastel,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.parsed.toLocaleString('uk-UA')} грн`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 9. 📍 По населених пунктах (горизонтальна стовпчаста)
+function initLocationChart(data) {
+    const ctx = document.getElementById('locationChart').getContext('2d');
+    
+    if (chartsInstances.location) {
+        chartsInstances.location.destroy();
+    }
+    
+    chartsInstances.location = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: 'Кількість учнів',
+                data: data.data,
+                backgroundColor: colorPalettes.cool,
+                borderColor: '#fff',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+// 10. 🏆 Топ учні (стовпчаста)
+function initTopStudentsChart(data) {
+    const ctx = document.getElementById('topStudentsChart').getContext('2d');
+    
+    if (chartsInstances.topStudents) {
+        chartsInstances.topStudents.destroy();
+    }
+    
+    chartsInstances.topStudents = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: 'Кількість відвідувань',
+                data: data.data,
+                backgroundColor: colorPalettes.warm,
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+// 🔒 Ініціалізація графіків вразливості
+async function initVulnerabilityCharts() {
+    try {
+        console.log('📊 Завантажую дані вразливості...');
+        
+        // Отримуємо дані студентів та обчислюємо статистику вразливості
+        const studentsResponse = await fetch('/api/students');
+        if (!studentsResponse.ok) {
+            throw new Error(`HTTP ${studentsResponse.status}: ${studentsResponse.statusText}`);
+        }
+        
+        const students = await studentsResponse.json();
+        console.log('✅ Дані студентів отримано:', students.length, 'студентів');
+        
+        // Обчислюємо статистику вразливості
+        const vulnerabilityStats = calculateVulnerabilityStats(students);
+        const benefitsStats = calculateBenefitsStats(students);
+        
+        console.log('📊 Статистика вразливості:', vulnerabilityStats);
+        console.log('📊 Статистика пільг:', benefitsStats);
+        
+        // Перевіряємо чи є дані для відображення
+        const hasVulnerabilityData = Object.values(vulnerabilityStats).some(count => count > 0);
+        const hasBenefitsData = Object.values(benefitsStats).some(count => count > 0);
+        
+        // Ініціалізуємо графіки тільки якщо є дані
+        if (hasVulnerabilityData) {
+            initVulnerabilityPieChart(vulnerabilityStats);
+        } else {
+            showEmptyChart('vulnerabilityChart', '📊 Немає даних про вразливість', 'У системі поки немає студентів з пільгами. Додайте пільги студентам для відображення статистики.');
+        }
+        
+        if (hasBenefitsData) {
+            initBenefitsBarChart(benefitsStats);
+        } else {
+            showEmptyChart('benefitsChart', '📊 Немає даних про пільги', 'У системі поки немає студентів з пільгами. Додайте пільги студентам для відображення статистики.');
+        }
+        
+        console.log('🔒 Графіки вразливості ініціалізовано!');
+        
+    } catch (error) {
+        console.error('❌ Помилка завантаження даних вразливості:', error);
+        
+        // Показуємо помилку в контейнерах діаграм
+        showEmptyChart('vulnerabilityChart', '❌ Помилка завантаження', error.message);
+        showEmptyChart('benefitsChart', '❌ Помилка завантаження', error.message);
+    }
+}
+
+// 🚨 Показ пустої діаграми з повідомленням
+function showEmptyChart(chartId, title, message) {
+    const chartElement = document.getElementById(chartId);
+    if (chartElement) {
+        const container = chartElement.parentElement;
+        if (container) {
+            container.innerHTML = `
+                <div class="alert alert-info text-center" role="alert">
+                    <h5 class="alert-heading">${title}</h5>
+                    <p class="mb-0">${message}</p>
+                </div>
+            `;
+        }
+    }
+}
+
+// 📊 Обчислення статистики вразливості
+function calculateVulnerabilityStats(students) {
+    const stats = {
+        'ВПО (переселенці)': 0,
+        'Діти з інвалідністю': 0,
+        'Багатодітні сім\'ї': 0,
+        'Сім\'ї ЗСУ': 0,
+        'Малозабезпечені': 0,
+        'Сироти/під опікою': 0,
+        'Соціальний ризик': 0,
+        'Без пільг': 0
+    };
+    
+    students.forEach(student => {
+        let hasBenefit = false;
+        
+        if (student.benefit_internally_displaced) {
+            stats['ВПО (переселенці)']++;
+            hasBenefit = true;
+        }
+        if (student.benefit_disability) {
+            stats['Діти з інвалідністю']++;
+            hasBenefit = true;
+        }
+        if (student.benefit_large_family) {
+            stats['Багатодітні сім\'ї']++;
+            hasBenefit = true;
+        }
+        if (student.benefit_military_family) {
+            stats['Сім\'ї ЗСУ']++;
+            hasBenefit = true;
+        }
+        if (student.benefit_low_income) {
+            stats['Малозабезпечені']++;
+            hasBenefit = true;
+        }
+        if (student.benefit_orphan) {
+            stats['Сироти/під опікою']++;
+            hasBenefit = true;
+        }
+        if (student.benefit_social_risk) {
+            stats['Соціальний ризик']++;
+            hasBenefit = true;
+        }
+        
+        if (!hasBenefit) {
+            stats['Без пільг']++;
+        }
+    });
+    
+    return stats;
+}
+
+// 📊 Обчислення детальної статистики пільг
+function calculateBenefitsStats(students) {
+    return {
+        'ВПО': students.filter(s => s.benefit_internally_displaced).length,
+        'Інвалідність': students.filter(s => s.benefit_disability).length,
+        'Багатодітні': students.filter(s => s.benefit_large_family).length,
+        'Сім\'ї ЗСУ': students.filter(s => s.benefit_military_family).length,
+        'Малозабезпечені': students.filter(s => s.benefit_low_income).length,
+        'Сироти': students.filter(s => s.benefit_orphan).length,
+        'Соц. ризик': students.filter(s => s.benefit_social_risk).length
+    };
+}
+
+// 🔒 Кругова діаграма вразливості
+function initVulnerabilityPieChart(stats) {
+    const ctx = document.getElementById('vulnerabilityChart').getContext('2d');
+    
+    if (chartsInstances.vulnerability) {
+        chartsInstances.vulnerability.destroy();
+    }
+    
+    // Фільтруємо категорії з учнями
+    const labels = [];
+    const data = [];
+    const colors = [];
+    
+    const colorMap = {
+        'ВПО (переселенці)': '#DC3545',  // червоний
+        'Діти з інвалідністю': '#6F42C1', // фіолетовий
+        'Багатодітні сім\'ї': '#28A745',   // зелений
+        'Сім\'ї ЗСУ': '#FFC107',          // жовтий
+        'Малозабезпечені': '#FD7E14',     // помаранчевий
+        'Сироти/під опікою': '#17A2B8',   // блакитний
+        'Соціальний ризик': '#E83E8C',    // рожевий
+        'Без пільг': '#6C757D'            // сірий
+    };
+    
+    Object.entries(stats).forEach(([label, count]) => {
+        if (count > 0) {
+            labels.push(label);
+            data.push(count);
+            colors.push(colorMap[label]);
+        }
+    });
+    
+    chartsInstances.vulnerability = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors,
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverBorderWidth: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 12,
+                        usePointStyle: true,
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            animation: {
+                animateRotate: true,
+                duration: 1000
+            }
+        }
+    });
+}
+
+// 🏠 Стовпчаста діаграма детальних пільг
+function initBenefitsBarChart(stats) {
+    const ctx = document.getElementById('benefitsDetailChart').getContext('2d');
+    
+    if (chartsInstances.benefitsDetail) {
+        chartsInstances.benefitsDetail.destroy();
+    }
+    
+    const labels = Object.keys(stats);
+    const data = Object.values(stats);
+    
+    chartsInstances.benefitsDetail = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Кількість учнів',
+                data: data,
+                backgroundColor: [
+                    '#DC3545', // ВПО
+                    '#6F42C1', // Інвалідність
+                    '#28A745', // Багатодітні
+                    '#FFC107', // ЗСУ
+                    '#FD7E14', // Малозабезпечені
+                    '#17A2B8', // Сироти
+                    '#E83E8C'  // Соц. ризик
+                ],
+                borderWidth: 1,
+                borderRadius: 4,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            return `Категорія: ${context[0].label}`;
+                        },
+                        label: function(context) {
+                            return `Учнів: ${context.parsed.y}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    },
+                    title: {
+                        display: true,
+                        text: 'Кількість учнів'
+                    }
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
+                }
+            },
+            animation: {
+                duration: 800,
+                easing: 'easeInOutQuart'
+            }
+        }
+    });
+}
+
+// 🔄 Оновлення всіх діаграм
+async function refreshAllCharts() {
+    const button = document.querySelector('button[onclick="refreshAllCharts()"]');
+    const originalText = button.innerHTML;
+    
+    button.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Оновлення...';
+    button.disabled = true;
+    
+    try {
+        await initializeAllCharts();
+        
+        // Показуємо повідомлення про успіх
+        button.innerHTML = '<i class="bi bi-check"></i> Оновлено!';
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 2000);
+        
+    } catch (error) {
+        button.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Помилка!';
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 3000);
+    }
+}
+
+// 🚨 Показ помилки завантаження
+function showChartsError(message) {
+    const errorHTML = `
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">❌ Помилка завантаження діаграм</h4>
+            <p>Не вдалося завантажити дані для діаграм:</p>
+            <hr>
+            <p class="mb-0"><code>${message}</code></p>
+        </div>
+    `;
+    
+    // Знаходимо контейнер і показуємо помилку
+    const chartsContainer = document.querySelector('.row.mt-5');
+    if (chartsContainer) {
+        chartsContainer.innerHTML = errorHTML;
+    }
+}
+
+// 🚀 Ініціалізація при завантаженні сторінки
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📊 Ініціалізація dashboard діаграм...');
+    
+    // Затримка для повного завантаження Bootstrap та Chart.js
+    setTimeout(() => {
+        initializeAllCharts();
+    }, 500);
+});
+</script>
+
+{% endblock %}

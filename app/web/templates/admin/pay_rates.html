@@ -1,0 +1,647 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* Стилі тарифів в стилі інших таблиць */
+#payRatesTable {
+    margin-top: 20px;
+}
+
+/* Специфічні розміри для колонок */
+#payRatesTable th:nth-child(1), #payRatesTable td:nth-child(1) { min-width: 150px; } /* Вчитель */
+#payRatesTable th:nth-child(2), #payRatesTable td:nth-child(2) { min-width: 120px; } /* Тип тарифу */
+#payRatesTable th:nth-child(3), #payRatesTable td:nth-child(3) { min-width: 100px; } /* Сума */
+#payRatesTable th:nth-child(4), #payRatesTable td:nth-child(4) { min-width: 120px; } /* Активний з */
+#payRatesTable th:nth-child(5), #payRatesTable td:nth-child(5) { min-width: 120px; } /* Активний до */
+#payRatesTable th:nth-child(6), #payRatesTable td:nth-child(6) { min-width: 100px; } /* Статус */
+#payRatesTable th:nth-child(7), #payRatesTable td:nth-child(7) { min-width: 100px; } /* Дії */
+
+/* Заголовки без яскравих кольорів */
+#payRatesTable thead th {
+    white-space: nowrap;
+    padding: 12px 8px;
+}
+
+/* Фільтри компактні */
+#payRatesTable .filter-row td {
+    padding: 8px 6px;
+}
+
+#payRatesTable .filter-input,
+#payRatesTable .filter-select {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    min-width: 90px;
+}
+
+/* Кнопки дій */
+#payRatesTable .btn-group .btn {
+    margin: 0 1px;
+    padding: 4px 8px;
+}
+
+/* Статистика карточки */
+.stats-card {
+    margin-top: 20px;
+}
+</style>
+
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>💰 Управління тарифами</h2>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPayRateModal">
+        <i class="bi bi-plus-circle"></i> Додати тариф
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Тарифи оплати вчителів</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="payRatesTable">
+                <thead>
+                    <tr>
+                        <th>Вчитель</th>
+                        <th>Тип тарифу</th>
+                        <th>Сума</th>
+                        <th>Активний з</th>
+                        <th>Активний до</th>
+                        <th>Статус</th>
+                        <th>Дії</th>
+                    </tr>
+                    <!-- Рядок фільтрів -->
+                    <tr class="filter-row">
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterTeacher" onchange="filterPayRates()">
+                                <option value="">Всі вчителі</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterRateType" onchange="filterPayRates()">
+                                <option value="">Всі типи</option>
+                                <option value="PER_LESSON">За заняття</option>
+                                <option value="PER_PRESENT">За присутнього</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm filter-input" id="filterAmount" 
+                                   placeholder="Сума від..." min="0" step="0.01" onkeyup="filterPayRates()">
+                        </td>
+                        <td>
+                            <input type="date" class="form-control form-control-sm filter-input" id="filterActiveFrom" 
+                                   onchange="filterPayRates()">
+                        </td>
+                        <td>
+                            <input type="date" class="form-control form-control-sm filter-input" id="filterActiveTo" 
+                                   onchange="filterPayRates()">
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterStatus" onchange="filterPayRates()">
+                                <option value="">Всі статуси</option>
+                                <option value="active">Активні</option>
+                                <option value="inactive">Неактивні</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPayRateFilters()" title="Скинути фільтри">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </td>
+                    </tr>
+                </thead>
+                <tbody id="payRatesTableBody">
+                    <!-- Дані будуть завантажені через JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row stats-card">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Статистика тарифів</h5>
+            </div>
+            <div class="card-body" id="payRatesStats">
+                <!-- Статистика буде завантажена через JavaScript -->
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Середні тарифи</h5>
+            </div>
+            <div class="card-body" id="payRatesAvgStats">
+                <!-- Середні дані будуть завантажені через JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для додавання тарифу -->
+<div class="modal fade" id="addPayRateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Додати новий тариф</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addPayRateForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="addTeacherId" class="form-label">Вчитель</label>
+                        <select class="form-select" id="addTeacherId" required>
+                            <option value="">Оберіть вчителя</option>
+                            {% for teacher in teachers %}
+                            <option value="{{ teacher.id }}">{{ teacher.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addRateType" class="form-label">Тип тарифу</label>
+                        <select class="form-select" id="addRateType" required>
+                            <option value="">Оберіть тип</option>
+                            <option value="PER_LESSON">За заняття</option>
+                            <option value="PER_PRESENT">За присутнього учня</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addAmount" class="form-label">Сума (₴)</label>
+                        <input type="number" class="form-control" id="addAmount" min="0" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addActiveFrom" class="form-label">Активний з</label>
+                        <input type="date" class="form-control" id="addActiveFrom" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addActiveTo" class="form-label">Активний до (необов'язково)</label>
+                        <input type="date" class="form-control" id="addActiveTo">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-primary">Додати</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для редагування тарифу -->
+<div class="modal fade" id="editPayRateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редагувати тариф</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editPayRateForm">
+                <input type="hidden" id="editPayRateId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editTeacherName" class="form-label">Вчитель</label>
+                        <input type="text" class="form-control" id="editTeacherName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editRateType" class="form-label">Тип тарифу</label>
+                        <select class="form-select" id="editRateType" required>
+                            <option value="PER_LESSON">За заняття</option>
+                            <option value="PER_PRESENT">За присутнього учня</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editAmount" class="form-label">Сума (₴)</label>
+                        <input type="number" class="form-control" id="editAmount" min="0" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editActiveFrom" class="form-label">Активний з</label>
+                        <input type="date" class="form-control" id="editActiveFrom" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editActiveTo" class="form-label">Активний до (необов'язково)</label>
+                        <input type="date" class="form-control" id="editActiveTo">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-warning">Зберегти зміни</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Змінні для зберігання даних
+let allPayRates = [];
+let allTeachers = [];
+
+// Завантаження всіх даних
+async function loadAllPayRatesData() {
+    try {
+        showLoading(true);
+        
+        // Завантажуємо тарифи та вчителів паралельно
+        const [payRatesResponse, teachersResponse] = await Promise.all([
+            fetch('/admin/pay_rates'), // Отримуємо HTML, але нам потрібні дані з API
+            fetch('/api/teachers')
+        ]);
+        
+        if (!teachersResponse.ok) {
+            throw new Error('Помилка завантаження вчителів');
+        }
+        
+        allTeachers = await teachersResponse.json();
+        
+        // Конвертуємо дані з backend в JSON-сумісний формат
+        allPayRates = [
+            {% for rate in pay_rates %}
+            {
+                id: {{ rate.id }},
+                teacher_id: {{ rate.teacher_id }},
+                rate_type: "{{ rate.rate_type.value }}",
+                amount_decimal: {{ rate.amount_decimal }},
+                active_from: "{{ rate.active_from }}",
+                active_to: {% if rate.active_to %}"{{ rate.active_to }}"{% else %}null{% endif %}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Заповнюємо фільтри
+        fillPayRateFilters();
+        
+        // Показуємо дані
+        displayPayRates(allPayRates);
+        updatePayRateStats(allPayRates);
+        
+        showLoading(false);
+    } catch (error) {
+        showLoading(false);
+        console.error('Помилка завантаження даних тарифів:', error);
+        showAlert('Помилка завантаження даних тарифів', 'danger');
+    }
+}
+
+// Заповнення фільтрів
+function fillPayRateFilters() {
+    // Заповнення фільтру вчителів в таблиці
+    const filterTeacher = document.getElementById('filterTeacher');
+    filterTeacher.innerHTML = '<option value="">Всі вчителі</option>';
+    
+    allTeachers.forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.id;
+        option.textContent = teacher.full_name;
+        filterTeacher.appendChild(option);
+    });
+    
+    // Заповнення select для додавання тарифу
+    const addTeacherSelect = document.getElementById('addTeacherId');
+    addTeacherSelect.innerHTML = '<option value="">Оберіть вчителя</option>';
+    
+    allTeachers.forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.id;
+        option.textContent = teacher.full_name;
+        addTeacherSelect.appendChild(option);
+    });
+}
+
+// Відображення тарифів
+function displayPayRates(payRates) {
+    const tableBody = document.getElementById('payRatesTableBody');
+    
+    if (payRates.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-muted">
+                    <i class="bi bi-cash-coin"></i><br>
+                    Тарифів не знайдено за заданими критеріями
+                </td>
+            </tr>`;
+        return;
+    }
+    
+    let bodyHTML = '';
+    const today = new Date();
+    
+    payRates.forEach(rate => {
+        const teacher = allTeachers.find(t => t.id === rate.teacher_id);
+        const teacherName = teacher ? teacher.full_name : 'Не вказано';
+        
+        // Форматування дат
+        const activeFrom = new Date(rate.active_from).toLocaleDateString('uk-UA');
+        const activeTo = rate.active_to ? new Date(rate.active_to).toLocaleDateString('uk-UA') : 'Безстроково';
+        
+        // Визначення статусу
+        const activeFromDate = new Date(rate.active_from);
+        const activeToDate = rate.active_to ? new Date(rate.active_to) : null;
+        const isActive = activeFromDate <= today && (!activeToDate || activeToDate >= today);
+        
+        // HTML для рядка
+        bodyHTML += `
+            <tr>
+                <td><strong>${teacherName}</strong></td>
+                <td>
+                    ${rate.rate_type === 'PER_LESSON' 
+                        ? '<span class="badge bg-info">За заняття</span>' 
+                        : '<span class="badge bg-success">За присутнього</span>'}
+                </td>
+                <td><strong class="text-success">${rate.amount_decimal} ₴</strong></td>
+                <td>${activeFrom}</td>
+                <td>${activeTo}</td>
+                <td>
+                    ${isActive 
+                        ? '<span class="badge bg-success">Активний</span>' 
+                        : '<span class="badge bg-secondary">Неактивний</span>'}
+                </td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-warning" 
+                                onclick="editPayRate(${rate.id}, '${teacherName}', '${rate.rate_type}', ${rate.amount_decimal}, '${rate.active_from}', '${rate.active_to || ''}')">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                onclick="deletePayRate(${rate.id}, '${teacherName}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+    });
+    
+    tableBody.innerHTML = bodyHTML;
+}
+
+// Фільтрування тарифів
+function filterPayRates() {
+    const teacherFilter = parseInt(document.getElementById('filterTeacher').value);
+    const rateTypeFilter = document.getElementById('filterRateType').value;
+    const amountFilter = parseFloat(document.getElementById('filterAmount').value);
+    const activeFromFilter = document.getElementById('filterActiveFrom').value;
+    const activeToFilter = document.getElementById('filterActiveTo').value;
+    const statusFilter = document.getElementById('filterStatus').value;
+    
+    let filteredRates = allPayRates;
+    
+    // Фільтр по вчителю
+    if (teacherFilter) {
+        filteredRates = filteredRates.filter(rate => rate.teacher_id === teacherFilter);
+    }
+    
+    // Фільтр по типу тарифу
+    if (rateTypeFilter) {
+        filteredRates = filteredRates.filter(rate => rate.rate_type === rateTypeFilter);
+    }
+    
+    // Фільтр по сумі (від заданої суми і вище)
+    if (!isNaN(amountFilter)) {
+        filteredRates = filteredRates.filter(rate => parseFloat(rate.amount_decimal) >= amountFilter);
+    }
+    
+    // Фільтр по даті "активний з"
+    if (activeFromFilter) {
+        const filterDate = new Date(activeFromFilter);
+        filteredRates = filteredRates.filter(rate => new Date(rate.active_from) >= filterDate);
+    }
+    
+    // Фільтр по даті "активний до"
+    if (activeToFilter) {
+        const filterDate = new Date(activeToFilter);
+        filteredRates = filteredRates.filter(rate => {
+            if (!rate.active_to) return false; // Безстрокові не проходять фільтр по кінцевій даті
+            return new Date(rate.active_to) <= filterDate;
+        });
+    }
+    
+    // Фільтр по статусу
+    if (statusFilter) {
+        const today = new Date();
+        filteredRates = filteredRates.filter(rate => {
+            const activeFromDate = new Date(rate.active_from);
+            const activeToDate = rate.active_to ? new Date(rate.active_to) : null;
+            const isActive = activeFromDate <= today && (!activeToDate || activeToDate >= today);
+            
+            return statusFilter === 'active' ? isActive : !isActive;
+        });
+    }
+    
+    displayPayRates(filteredRates);
+    updatePayRateStats(filteredRates);
+}
+
+// Скидання фільтрів
+function resetPayRateFilters() {
+    document.getElementById('filterTeacher').value = '';
+    document.getElementById('filterRateType').value = '';
+    document.getElementById('filterAmount').value = '';
+    document.getElementById('filterActiveFrom').value = '';
+    document.getElementById('filterActiveTo').value = '';
+    document.getElementById('filterStatus').value = '';
+    
+    displayPayRates(allPayRates);
+    updatePayRateStats(allPayRates);
+}
+
+// Оновлення статистики
+function updatePayRateStats(rates = allPayRates) {
+    const total = rates.length;
+    const perLessonCount = rates.filter(r => r.rate_type === 'PER_LESSON').length;
+    const perPresentCount = rates.filter(r => r.rate_type === 'PER_PRESENT').length;
+    
+    const today = new Date();
+    const activeCount = rates.filter(rate => {
+        const activeFromDate = new Date(rate.active_from);
+        const activeToDate = rate.active_to ? new Date(rate.active_to) : null;
+        return activeFromDate <= today && (!activeToDate || activeToDate >= today);
+    }).length;
+    
+    document.getElementById('payRatesStats').innerHTML = `
+        <p><strong>Всього тарифів:</strong> ${total}</p>
+        <p><strong>За заняття:</strong> ${perLessonCount}</p>
+        <p><strong>За присутнього:</strong> ${perPresentCount}</p>
+        <p><strong>Активних:</strong> ${activeCount}</p>
+    `;
+    
+    // Середні тарифи
+    if (rates.length > 0) {
+        const totalAmount = rates.reduce((sum, rate) => sum + parseFloat(rate.amount_decimal), 0);
+        const avgAmount = (totalAmount / rates.length).toFixed(2);
+        
+        const avgPerLesson = perLessonCount > 0 
+            ? (rates.filter(r => r.rate_type === 'PER_LESSON')
+                    .reduce((sum, rate) => sum + parseFloat(rate.amount_decimal), 0) / perLessonCount).toFixed(2)
+            : 0;
+            
+        const avgPerPresent = perPresentCount > 0 
+            ? (rates.filter(r => r.rate_type === 'PER_PRESENT')
+                    .reduce((sum, rate) => sum + parseFloat(rate.amount_decimal), 0) / perPresentCount).toFixed(2)
+            : 0;
+        
+        document.getElementById('payRatesAvgStats').innerHTML = `
+            <p><strong>Середній тариф:</strong> ${avgAmount} ₴</p>
+            <p><strong>Середній за заняття:</strong> ${avgPerLesson} ₴</p>
+            <p><strong>Середній за присутнього:</strong> ${avgPerPresent} ₴</p>
+        `;
+    } else {
+        document.getElementById('payRatesAvgStats').innerHTML = `
+            <p class="text-muted">Немає даних для розрахунку</p>
+        `;
+    }
+}
+
+// Додавання тарифу
+document.getElementById('addPayRateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = {
+        teacher_id: parseInt(document.getElementById('addTeacherId').value),
+        rate_type: document.getElementById('addRateType').value,
+        amount_decimal: parseFloat(document.getElementById('addAmount').value),
+        active_from: document.getElementById('addActiveFrom').value,
+        active_to: document.getElementById('addActiveTo').value || null
+    };
+    
+    try {
+        const response = await fetch('/api/pay_rates', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        if (response.ok) {
+            showAlert('Тариф успішно додано!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('addPayRateModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Помилка додавання тарифу', 'danger');
+        }
+    } catch (error) {
+        console.error('Помилка:', error);
+        showAlert('Помилка мережі', 'danger');
+    }
+});
+
+// Редагування тарифу
+function editPayRate(id, teacherName, rateType, amount, activeFrom, activeTo) {
+    document.getElementById('editPayRateId').value = id;
+    document.getElementById('editTeacherName').value = teacherName;
+    document.getElementById('editRateType').value = rateType;
+    document.getElementById('editAmount').value = amount;
+    document.getElementById('editActiveFrom').value = activeFrom;
+    document.getElementById('editActiveTo').value = activeTo;
+    
+    new bootstrap.Modal(document.getElementById('editPayRateModal')).show();
+}
+
+document.getElementById('editPayRateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const id = document.getElementById('editPayRateId').value;
+    const formData = {
+        rate_type: document.getElementById('editRateType').value,
+        amount_decimal: parseFloat(document.getElementById('editAmount').value),
+        active_from: document.getElementById('editActiveFrom').value,
+        active_to: document.getElementById('editActiveTo').value || null
+    };
+    
+    try {
+        const response = await fetch(`/api/pay_rates/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        if (response.ok) {
+            showAlert('Тариф успішно оновлено!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('editPayRateModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Помилка оновлення тарифу', 'danger');
+        }
+    } catch (error) {
+        console.error('Помилка:', error);
+        showAlert('Помилка мережі', 'danger');
+    }
+});
+
+// Видалення тарифу
+async function deletePayRate(id, teacherName) {
+    if (!confirm(`Видалити тариф для вчителя "${teacherName}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/pay_rates/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            showAlert('Тариф успішно видалено!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            const error = await response.json();
+            showAlert(error.detail || 'Помилка видалення тарифу', 'danger');
+        }
+    } catch (error) {
+        console.error('Помилка:', error);
+        showAlert('Помилка мережі', 'danger');
+    }
+}
+
+// Допоміжна функція для показу сповіщень
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// Функція показу завантаження
+function showLoading(show = true) {
+    let spinner = document.getElementById('loadingSpinner');
+    if (!spinner && show) {
+        spinner = document.createElement('div');
+        spinner.id = 'loadingSpinner';
+        spinner.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Завантаження...</span></div>';
+        spinner.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;';
+        document.body.appendChild(spinner);
+    }
+    if (spinner) {
+        spinner.style.display = show ? 'block' : 'none';
+    }
+}
+
+// Завантаження даних при завантаженні сторінки
+document.addEventListener('DOMContentLoaded', () => {
+    loadAllPayRatesData();
+    
+    // Встановлюємо поточну дату за замовчуванням
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('addActiveFrom').value = today;
+});
+</script>
+{% endblock %}

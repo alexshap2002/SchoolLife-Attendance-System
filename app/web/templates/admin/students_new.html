@@ -1,0 +1,1105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* Стилі учнів з розширеним функціоналом */
+#studentsTable {
+    margin-top: 20px;
+}
+
+/* Специфічні розміри для колонок */
+#studentsTable th:nth-child(1), #studentsTable td:nth-child(1) { min-width: 120px; } /* ПІБ */
+#studentsTable th:nth-child(2), #studentsTable td:nth-child(2) { min-width: 100px; } /* Вік/Клас */
+#studentsTable th:nth-child(3), #studentsTable td:nth-child(3) { min-width: 130px; } /* Телефони */
+#studentsTable th:nth-child(4), #studentsTable td:nth-child(4) { min-width: 120px; } /* Місце */
+#studentsTable th:nth-child(5), #studentsTable td:nth-child(5) { min-width: 200px; } /* Пільги */
+#studentsTable th:nth-child(6), #studentsTable td:nth-child(6) { min-width: 100px; } /* Дії */
+
+/* Заголовки без яскравих кольорів */
+#studentsTable thead th {
+    white-space: nowrap;
+    padding: 12px 8px;
+}
+
+/* Фільтри компактні */
+#studentsTable .filter-row td {
+    padding: 8px 6px;
+}
+
+#studentsTable .filter-input,
+#studentsTable .filter-select {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    min-width: 90px;
+}
+
+/* Бейджі пільг */
+.benefit-badge {
+    font-size: 0.7rem;
+    margin: 1px;
+    padding: 2px 6px;
+}
+
+/* Кнопки дій */
+#studentsTable .btn-group .btn {
+    margin: 0 1px;
+    padding: 4px 8px;
+}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Управління учнями</h2>
+    <div class="btn-group">
+        <button type="button" class="btn btn-success" onclick="openAddStudentModal()">
+            <i class="bi bi-plus-circle"></i> Додати учня
+        </button>
+        <button type="button" class="btn btn-outline-primary" onclick="exportStudentsData()">
+            <i class="bi bi-download"></i> Експорт
+        </button>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="studentsTable">
+                <thead>
+                    <tr>
+                        <th>ПІБ</th>
+                        <th>Вік/Клас</th>
+                        <th>Телефони</th>
+                        <th>Місце проживання</th>
+                        <th>Пільги</th>
+                        <th>Дії</th>
+                    </tr>
+                    <!-- Рядок фільтрів -->
+                    <tr class="filter-row">
+                        <td>
+                            <input type="text" class="form-control form-control-sm filter-input" id="filterName" 
+                                   placeholder="Пошук по ПІБ..." onkeyup="filterStudents()">
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm filter-input" id="filterAgeGrade" 
+                                   placeholder="Вік або клас..." onkeyup="filterStudents()">
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm filter-input" id="filterPhone" 
+                                   placeholder="Телефон..." onkeyup="filterStudents()">
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterLocation" onchange="filterStudents()">
+                                <option value="">Всі місця</option>
+                                <option value="Село">Село</option>
+                                <option value="СМТ">СМТ</option>
+                                <option value="Місто">Місто</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterBenefit" onchange="filterStudents()">
+                                <option value="">Всі пільги</option>
+                                <option value="benefit_low_income">Малозабезпечені</option>
+                                <option value="benefit_large_family">Багатодітні</option>
+                                <option value="benefit_military_family">Сім'я ЗСУ</option>
+                                <option value="benefit_internally_displaced">ВПО</option>
+                                <option value="benefit_orphan">Сирота/під опікою</option>
+                                <option value="benefit_disability">Дитина з інвалідністю</option>
+                                <option value="benefit_social_risk">СЖО</option>
+                                <option value="no_benefits">Без пільг</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetStudentFilters()" title="Скинути фільтри">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </td>
+                    </tr>
+                </thead>
+                <tbody id="studentsTableBody">
+                    <!-- Дані будуть завантажені через JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Загальна статистика</h5>
+            </div>
+            <div class="card-body" id="studentsStats">
+                <!-- Статистика буде завантажена через JavaScript -->
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Статистика по пільгах</h5>
+            </div>
+            <div class="card-body" id="benefitsStats">
+                <!-- Статистика по пільгах буде завантажена через JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для додавання учня -->
+<div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addStudentModalLabel">
+                    <i class="bi bi-plus-circle"></i> Додати нового учня
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addStudentForm">
+                    <!-- Основна інформація -->
+                    <h6 class="mb-3">👤 Основна інформація</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addFirstName" class="form-label">Ім'я *</label>
+                                <input type="text" class="form-control" id="addFirstName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addLastName" class="form-label">Прізвище *</label>
+                                <input type="text" class="form-control" id="addLastName" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="addBirthDate" class="form-label">День народження</label>
+                                <input type="date" class="form-control" id="addBirthDate">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="addAge" class="form-label">Вік</label>
+                                <input type="number" class="form-control" id="addAge" min="5" max="18">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="addGrade" class="form-label">Клас у школі</label>
+                                <input type="text" class="form-control" id="addGrade" placeholder="наприклад: 5-А">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addPhoneChild" class="form-label">Телефон дитини</label>
+                        <input type="tel" class="form-control" id="addPhoneChild" placeholder="+380...">
+                    </div>
+                    
+                    <!-- Інформація про батьків -->
+                    <h6 class="mb-3 mt-4">👨‍👩‍👧‍👦 Інформація про батьків</h6>
+                    <div class="mb-3">
+                        <label for="addParentName" class="form-label">ПІБ батька/матері</label>
+                        <input type="text" class="form-control" id="addParentName">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addPhoneMother" class="form-label">Телефон матері</label>
+                                <input type="tel" class="form-control" id="addPhoneMother" placeholder="+380...">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addPhoneFather" class="form-label">Телефон батька</label>
+                                <input type="tel" class="form-control" id="addPhoneFather" placeholder="+380...">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Місце проживання -->
+                    <h6 class="mb-3 mt-4">🏠 Місце проживання</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addLocation" class="form-label">Місце проживання</label>
+                                <input type="text" class="form-control" id="addLocation" placeholder="Назва населеного пункту">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addSettlementType" class="form-label">Тип населеного пункту</label>
+                                <select class="form-select" id="addSettlementType">
+                                    <option value="">Оберіть тип</option>
+                                    <option value="Село">Село</option>
+                                    <option value="СМТ">СМТ (селище міського типу)</option>
+                                    <option value="Місто">Місто</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addAddress" class="form-label">Адреса проживання</label>
+                        <textarea class="form-control" id="addAddress" rows="2" placeholder="Повна адреса проживання"></textarea>
+                    </div>
+                    
+                    <!-- Пільги -->
+                    <h6 class="mb-3 mt-4">🏷️ Пільги та статус</h6>
+                    <div class="alert alert-info">
+                        <small><i class="bi bi-info-circle"></i> Оберіть всі пільги які стосуються цієї дитини. Ця інформація використовується для звітності.</small>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="addBenefitLowIncome">
+                                <label class="form-check-label" for="addBenefitLowIncome">
+                                    <span class="badge bg-warning">Малозабезпечені</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="addBenefitLargeFamily">
+                                <label class="form-check-label" for="addBenefitLargeFamily">
+                                    <span class="badge bg-info">Багатодітні</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="addBenefitMilitaryFamily">
+                                <label class="form-check-label" for="addBenefitMilitaryFamily">
+                                    <span class="badge bg-success">Сім'я ЗСУ</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="addBenefitInternallyDisplaced">
+                                <label class="form-check-label" for="addBenefitInternallyDisplaced">
+                                    <span class="badge bg-primary">ВПО</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="addBenefitOrphan">
+                                <label class="form-check-label" for="addBenefitOrphan">
+                                    <span class="badge bg-secondary">Сирота/під опікою</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="addBenefitDisability">
+                                <label class="form-check-label" for="addBenefitDisability">
+                                    <span class="badge bg-danger">Дитина з інвалідністю</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="addBenefitSocialRisk">
+                                <label class="form-check-label" for="addBenefitSocialRisk">
+                                    <span class="badge bg-dark">СЖО</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-success" onclick="saveNewStudent()">
+                    <i class="bi bi-check-lg"></i> Додати учня
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для редагування учня -->
+<div class="modal fade" id="editStudentModal" tabindex="-1" aria-labelledby="editStudentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editStudentModalLabel">
+                    <i class="bi bi-pencil"></i> Редагувати учня
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editStudentForm">
+                    <input type="hidden" id="editStudentId">
+                    <!-- Повторюємо ту саму структуру що і в addStudentModal, але з editXxx id -->
+                    <!-- Основна інформація -->
+                    <h6 class="mb-3">👤 Основна інформація</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editFirstName" class="form-label">Ім'я *</label>
+                                <input type="text" class="form-control" id="editFirstName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLastName" class="form-label">Прізвище *</label>
+                                <input type="text" class="form-control" id="editLastName" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editBirthDate" class="form-label">День народження</label>
+                                <input type="date" class="form-control" id="editBirthDate">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editAge" class="form-label">Вік</label>
+                                <input type="number" class="form-control" id="editAge" min="5" max="18">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editGrade" class="form-label">Клас у школі</label>
+                                <input type="text" class="form-control" id="editGrade" placeholder="наприклад: 5-А">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPhoneChild" class="form-label">Телефон дитини</label>
+                        <input type="tel" class="form-control" id="editPhoneChild" placeholder="+380...">
+                    </div>
+                    
+                    <!-- Інформація про батьків -->
+                    <h6 class="mb-3 mt-4">👨‍👩‍👧‍👦 Інформація про батьків</h6>
+                    <div class="mb-3">
+                        <label for="editParentName" class="form-label">ПІБ батька/матері</label>
+                        <input type="text" class="form-control" id="editParentName">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editPhoneMother" class="form-label">Телефон матері</label>
+                                <input type="tel" class="form-control" id="editPhoneMother" placeholder="+380...">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editPhoneFather" class="form-label">Телефон батька</label>
+                                <input type="tel" class="form-control" id="editPhoneFather" placeholder="+380...">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Місце проживання -->
+                    <h6 class="mb-3 mt-4">🏠 Місце проживання</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLocation" class="form-label">Місце проживання</label>
+                                <input type="text" class="form-control" id="editLocation" placeholder="Назва населеного пункту">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editSettlementType" class="form-label">Тип населеного пункту</label>
+                                <select class="form-select" id="editSettlementType">
+                                    <option value="">Оберіть тип</option>
+                                    <option value="Село">Село</option>
+                                    <option value="СМТ">СМТ (селище міського типу)</option>
+                                    <option value="Місто">Місто</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editAddress" class="form-label">Адреса проживання</label>
+                        <textarea class="form-control" id="editAddress" rows="2" placeholder="Повна адреса проживання"></textarea>
+                    </div>
+                    
+                    <!-- Пільги -->
+                    <h6 class="mb-3 mt-4">🏷️ Пільги та статус</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="editBenefitLowIncome">
+                                <label class="form-check-label" for="editBenefitLowIncome">
+                                    <span class="badge bg-warning">Малозабезпечені</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="editBenefitLargeFamily">
+                                <label class="form-check-label" for="editBenefitLargeFamily">
+                                    <span class="badge bg-info">Багатодітні</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="editBenefitMilitaryFamily">
+                                <label class="form-check-label" for="editBenefitMilitaryFamily">
+                                    <span class="badge bg-success">Сім'я ЗСУ</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="editBenefitInternallyDisplaced">
+                                <label class="form-check-label" for="editBenefitInternallyDisplaced">
+                                    <span class="badge bg-primary">ВПО</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="editBenefitOrphan">
+                                <label class="form-check-label" for="editBenefitOrphan">
+                                    <span class="badge bg-secondary">Сирота/під опікою</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="editBenefitDisability">
+                                <label class="form-check-label" for="editBenefitDisability">
+                                    <span class="badge bg-danger">Дитина з інвалідністю</span>
+                                </label>
+                            </div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="editBenefitSocialRisk">
+                                <label class="form-check-label" for="editBenefitSocialRisk">
+                                    <span class="badge bg-dark">СЖО</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-warning" onclick="updateStudent()">
+                    <i class="bi bi-check-lg"></i> Зберегти зміни
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Змінні для зберігання даних
+let allStudents = [];
+
+// Завантаження всіх студентів
+async function loadAllStudentsData() {
+    try {
+        showLoading(true);
+        
+        const response = await fetch('/api/students');
+        if (!response.ok) {
+            throw new Error('Помилка завантаження студентів');
+        }
+        
+        allStudents = await response.json();
+        
+        // Показуємо дані
+        displayStudents(allStudents);
+        updateStudentsStats(allStudents);
+        
+        showLoading(false);
+    } catch (error) {
+        showLoading(false);
+        console.error('Помилка завантаження студентів:', error);
+        showAlert('Помилка завантаження студентів', 'danger');
+    }
+}
+
+// Відображення студентів
+function displayStudents(students) {
+    const tableBody = document.getElementById('studentsTableBody');
+    
+    if (students.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-muted">
+                    <i class="bi bi-people"></i><br>
+                    Студентів не знайдено за заданими критеріями
+                </td>
+            </tr>`;
+        return;
+    }
+    
+    let bodyHTML = '';
+    
+    students.forEach(student => {
+        // Формуємо ПІБ
+        const fullName = `${student.first_name} ${student.last_name}`;
+        
+        // Вік та клас
+        const ageGrade = `${student.age || '?'} р. ${student.grade ? '(' + student.grade + ')' : ''}`;
+        
+        // Телефони
+        const phones = [
+            student.phone_child && `👶 ${student.phone_child}`,
+            student.phone_mother && `👩 ${student.phone_mother}`, 
+            student.phone_father && `👨 ${student.phone_father}`
+        ].filter(Boolean).join('<br>') || '-';
+        
+        // Місце проживання
+        const location = student.settlement_type ? 
+            `${student.settlement_type}${student.location ? ': ' + student.location : ''}` : 
+            (student.location || '-');
+        
+        // Пільги - формуємо бейджі
+        const benefits = [];
+        if (student.benefit_low_income) benefits.push('<span class="badge bg-warning benefit-badge">Малозабезпечені</span>');
+        if (student.benefit_large_family) benefits.push('<span class="badge bg-info benefit-badge">Багатодітні</span>');
+        if (student.benefit_military_family) benefits.push('<span class="badge bg-success benefit-badge">Сім\'я ЗСУ</span>');
+        if (student.benefit_internally_displaced) benefits.push('<span class="badge bg-primary benefit-badge">ВПО</span>');
+        if (student.benefit_orphan) benefits.push('<span class="badge bg-secondary benefit-badge">Сирота</span>');
+        if (student.benefit_disability) benefits.push('<span class="badge bg-danger benefit-badge">Інвалідність</span>');
+        if (student.benefit_social_risk) benefits.push('<span class="badge bg-dark benefit-badge">СЖО</span>');
+        
+        const benefitsDisplay = benefits.length > 0 ? benefits.join(' ') : '<span class="text-muted">Без пільг</span>';
+        
+        // HTML для рядка
+        bodyHTML += `
+            <tr>
+                <td><strong>${fullName}</strong></td>
+                <td>${ageGrade}</td>
+                <td><small>${phones}</small></td>
+                <td><small>${location}</small></td>
+                <td>${benefitsDisplay}</td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="viewStudent(${student.id})" title="Переглянути">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="editStudent(${student.id})" title="Редагувати">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteStudent(${student.id})" title="Видалити">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+    });
+    
+    tableBody.innerHTML = bodyHTML;
+}
+
+// Фільтрування студентів
+function filterStudents() {
+    const nameFilter = document.getElementById('filterName').value.toLowerCase();
+    const ageGradeFilter = document.getElementById('filterAgeGrade').value.toLowerCase();
+    const phoneFilter = document.getElementById('filterPhone').value.toLowerCase();
+    const locationFilter = document.getElementById('filterLocation').value;
+    const benefitFilter = document.getElementById('filterBenefit').value;
+    
+    let filteredStudents = allStudents;
+    
+    // Фільтр по ПІБ
+    if (nameFilter) {
+        filteredStudents = filteredStudents.filter(student => {
+            const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+            return fullName.includes(nameFilter);
+        });
+    }
+    
+    // Фільтр по віку/класу
+    if (ageGradeFilter) {
+        filteredStudents = filteredStudents.filter(student => {
+            const ageString = (student.age || '').toString();
+            const gradeString = (student.grade || '').toLowerCase();
+            return ageString.includes(ageGradeFilter) || gradeString.includes(ageGradeFilter);
+        });
+    }
+    
+    // Фільтр по телефону
+    if (phoneFilter) {
+        filteredStudents = filteredStudents.filter(student => {
+            const phones = [student.phone_child, student.phone_mother, student.phone_father]
+                .filter(Boolean).join(' ').toLowerCase();
+            return phones.includes(phoneFilter);
+        });
+    }
+    
+    // Фільтр по типу населеного пункту
+    if (locationFilter) {
+        filteredStudents = filteredStudents.filter(student => student.settlement_type === locationFilter);
+    }
+    
+    // Фільтр по пільгах
+    if (benefitFilter) {
+        if (benefitFilter === 'no_benefits') {
+            filteredStudents = filteredStudents.filter(student => {
+                return !student.benefit_low_income && !student.benefit_large_family && 
+                       !student.benefit_military_family && !student.benefit_internally_displaced &&
+                       !student.benefit_orphan && !student.benefit_disability && !student.benefit_social_risk;
+            });
+        } else {
+            filteredStudents = filteredStudents.filter(student => student[benefitFilter] === true);
+        }
+    }
+    
+    displayStudents(filteredStudents);
+    updateStudentsStats(filteredStudents);
+}
+
+// Скидання фільтрів
+function resetStudentFilters() {
+    document.getElementById('filterName').value = '';
+    document.getElementById('filterAgeGrade').value = '';
+    document.getElementById('filterPhone').value = '';
+    document.getElementById('filterLocation').value = '';
+    document.getElementById('filterBenefit').value = '';
+    
+    displayStudents(allStudents);
+    updateStudentsStats(allStudents);
+}
+
+// Оновлення статистики
+function updateStudentsStats(students = allStudents) {
+    const total = students.length;
+    
+    // Загальна статистика
+    document.getElementById('studentsStats').innerHTML = `
+        <p><strong>Всього студентів:</strong> ${total}</p>
+        <p><strong>З пільгами:</strong> ${students.filter(s => s.benefit_low_income || s.benefit_large_family || s.benefit_military_family || s.benefit_internally_displaced || s.benefit_orphan || s.benefit_disability || s.benefit_social_risk).length}</p>
+        <p><strong>Без пільг:</strong> ${students.filter(s => !s.benefit_low_income && !s.benefit_large_family && !s.benefit_military_family && !s.benefit_internally_displaced && !s.benefit_orphan && !s.benefit_disability && !s.benefit_social_risk).length}</p>
+    `;
+    
+    // Статистика по пільгах
+    const benefitStats = {
+        'Малозабезпечені': students.filter(s => s.benefit_low_income).length,
+        'Багатодітні': students.filter(s => s.benefit_large_family).length,
+        'Сім\'я ЗСУ': students.filter(s => s.benefit_military_family).length,
+        'ВПО': students.filter(s => s.benefit_internally_displaced).length,
+        'Сирота/під опікою': students.filter(s => s.benefit_orphan).length,
+        'Дитина з інвалідністю': students.filter(s => s.benefit_disability).length,
+        'СЖО': students.filter(s => s.benefit_social_risk).length
+    };
+    
+    let benefitsHTML = '';
+    for (const [benefit, count] of Object.entries(benefitStats)) {
+        if (count > 0) {
+            const percentage = ((count / total) * 100).toFixed(1);
+            benefitsHTML += `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>${benefit}</span>
+                    <span><strong>${count}</strong> <small class="text-muted">(${percentage}%)</small></span>
+                </div>
+            `;
+        }
+    }
+    
+    if (benefitsHTML === '') {
+        benefitsHTML = '<p class="text-muted">Немає студентів з пільгами</p>';
+    }
+    
+    document.getElementById('benefitsStats').innerHTML = benefitsHTML;
+}
+
+// Відкриття модального вікна для додавання студента
+function openAddStudentModal() {
+    // Очищаємо форму
+    document.getElementById('addStudentForm').reset();
+    
+    // Відкриваємо модальне вікно
+    new bootstrap.Modal(document.getElementById('addStudentModal')).show();
+}
+
+// Збереження нового студента
+async function saveNewStudent() {
+    const formData = {
+        first_name: document.getElementById('addFirstName').value,
+        last_name: document.getElementById('addLastName').value,
+        birth_date: document.getElementById('addBirthDate').value || null,
+        age: parseInt(document.getElementById('addAge').value) || null,
+        grade: document.getElementById('addGrade').value || null,
+        phone_child: document.getElementById('addPhoneChild').value || null,
+        parent_name: document.getElementById('addParentName').value || null,
+        phone_mother: document.getElementById('addPhoneMother').value || null,
+        phone_father: document.getElementById('addPhoneFather').value || null,
+        location: document.getElementById('addLocation').value || null,
+        settlement_type: document.getElementById('addSettlementType').value || null,
+        address: document.getElementById('addAddress').value || null,
+        benefit_low_income: document.getElementById('addBenefitLowIncome').checked,
+        benefit_large_family: document.getElementById('addBenefitLargeFamily').checked,
+        benefit_military_family: document.getElementById('addBenefitMilitaryFamily').checked,
+        benefit_internally_displaced: document.getElementById('addBenefitInternallyDisplaced').checked,
+        benefit_orphan: document.getElementById('addBenefitOrphan').checked,
+        benefit_disability: document.getElementById('addBenefitDisability').checked,
+        benefit_social_risk: document.getElementById('addBenefitSocialRisk').checked
+    };
+    
+    // Перевірка обов'язкових полів
+    if (!formData.first_name || !formData.last_name) {
+        showAlert('Заповніть обов\'язкові поля (Ім\'я та Прізвище)', 'danger');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/students', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        if (!response.ok) throw new Error('Помилка створення студента');
+        
+        // Перезавантажуємо дані
+        await loadAllStudentsData();
+        bootstrap.Modal.getInstance(document.getElementById('addStudentModal')).hide();
+        showAlert('Студента успішно додано', 'success');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// Редагування студента
+function editStudent(id) {
+    const student = allStudents.find(s => s.id === id);
+    if (!student) {
+        showAlert('Студента не знайдено', 'danger');
+        return;
+    }
+    
+    // Заповнюємо форму даними
+    document.getElementById('editStudentId').value = student.id;
+    document.getElementById('editFirstName').value = student.first_name || '';
+    document.getElementById('editLastName').value = student.last_name || '';
+    document.getElementById('editBirthDate').value = student.birth_date || '';
+    document.getElementById('editAge').value = student.age || '';
+    document.getElementById('editGrade').value = student.grade || '';
+    document.getElementById('editPhoneChild').value = student.phone_child || '';
+    document.getElementById('editParentName').value = student.parent_name || '';
+    document.getElementById('editPhoneMother').value = student.phone_mother || '';
+    document.getElementById('editPhoneFather').value = student.phone_father || '';
+    document.getElementById('editLocation').value = student.location || '';
+    document.getElementById('editSettlementType').value = student.settlement_type || '';
+    document.getElementById('editAddress').value = student.address || '';
+    document.getElementById('editBenefitLowIncome').checked = student.benefit_low_income || false;
+    document.getElementById('editBenefitLargeFamily').checked = student.benefit_large_family || false;
+    document.getElementById('editBenefitMilitaryFamily').checked = student.benefit_military_family || false;
+    document.getElementById('editBenefitInternallyDisplaced').checked = student.benefit_internally_displaced || false;
+    document.getElementById('editBenefitOrphan').checked = student.benefit_orphan || false;
+    document.getElementById('editBenefitDisability').checked = student.benefit_disability || false;
+    document.getElementById('editBenefitSocialRisk').checked = student.benefit_social_risk || false;
+    
+    // Відкриваємо модальне вікно
+    new bootstrap.Modal(document.getElementById('editStudentModal')).show();
+}
+
+// Оновлення студента
+async function updateStudent() {
+    const studentId = parseInt(document.getElementById('editStudentId').value);
+    const formData = {
+        first_name: document.getElementById('editFirstName').value,
+        last_name: document.getElementById('editLastName').value,
+        birth_date: document.getElementById('editBirthDate').value || null,
+        age: parseInt(document.getElementById('editAge').value) || null,
+        grade: document.getElementById('editGrade').value || null,
+        phone_child: document.getElementById('editPhoneChild').value || null,
+        parent_name: document.getElementById('editParentName').value || null,
+        phone_mother: document.getElementById('editPhoneMother').value || null,
+        phone_father: document.getElementById('editPhoneFather').value || null,
+        location: document.getElementById('editLocation').value || null,
+        settlement_type: document.getElementById('editSettlementType').value || null,
+        address: document.getElementById('editAddress').value || null,
+        benefit_low_income: document.getElementById('editBenefitLowIncome').checked,
+        benefit_large_family: document.getElementById('editBenefitLargeFamily').checked,
+        benefit_military_family: document.getElementById('editBenefitMilitaryFamily').checked,
+        benefit_internally_displaced: document.getElementById('editBenefitInternallyDisplaced').checked,
+        benefit_orphan: document.getElementById('editBenefitOrphan').checked,
+        benefit_disability: document.getElementById('editBenefitDisability').checked,
+        benefit_social_risk: document.getElementById('editBenefitSocialRisk').checked
+    };
+    
+    // Перевірка обов'язкових полів
+    if (!formData.first_name || !formData.last_name) {
+        showAlert('Заповніть обов\'язкові поля (Ім\'я та Прізвище)', 'danger');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/students/${studentId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        if (!response.ok) throw new Error('Помилка оновлення студента');
+        
+        // Перезавантажуємо дані
+        await loadAllStudentsData();
+        bootstrap.Modal.getInstance(document.getElementById('editStudentModal')).hide();
+        showAlert('Студента успішно оновлено', 'success');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// Перегляд деталей студента
+function viewStudent(id) {
+    const student = allStudents.find(s => s.id === id);
+    if (!student) {
+        showAlert('Студента не знайдено', 'danger');
+        return;
+    }
+    
+    // Формуємо HTML з деталями
+    const benefitsList = [];
+    if (student.benefit_low_income) benefitsList.push('Малозабезпечені');
+    if (student.benefit_large_family) benefitsList.push('Багатодітні');
+    if (student.benefit_military_family) benefitsList.push('Сім\'я ЗСУ');
+    if (student.benefit_internally_displaced) benefitsList.push('ВПО');
+    if (student.benefit_orphan) benefitsList.push('Сирота/під опікою');
+    if (student.benefit_disability) benefitsList.push('Дитина з інвалідністю');
+    if (student.benefit_social_risk) benefitsList.push('СЖО');
+    
+    const detailsHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>👤 Основна інформація</h6>
+                <p><strong>ПІБ:</strong> ${student.first_name} ${student.last_name}</p>
+                <p><strong>Вік:</strong> ${student.age || 'Не вказано'}</p>
+                <p><strong>Клас:</strong> ${student.grade || 'Не вказано'}</p>
+                <p><strong>День народження:</strong> ${student.birth_date || 'Не вказано'}</p>
+                <p><strong>Телефон дитини:</strong> ${student.phone_child || 'Не вказано'}</p>
+            </div>
+            <div class="col-md-6">
+                <h6>👨‍👩‍👧‍👦 Батьки та контакти</h6>
+                <p><strong>ПІБ батьків:</strong> ${student.parent_name || 'Не вказано'}</p>
+                <p><strong>Телефон матері:</strong> ${student.phone_mother || 'Не вказано'}</p>
+                <p><strong>Телефон батька:</strong> ${student.phone_father || 'Не вказано'}</p>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-md-6">
+                <h6>🏠 Проживання</h6>
+                <p><strong>Тип населеного пункту:</strong> ${student.settlement_type || 'Не вказано'}</p>
+                <p><strong>Місце:</strong> ${student.location || 'Не вказано'}</p>
+                <p><strong>Адреса:</strong> ${student.address || 'Не вказано'}</p>
+            </div>
+            <div class="col-md-6">
+                <h6>🏷️ Пільги</h6>
+                ${benefitsList.length > 0 ? 
+                    benefitsList.map(b => `<span class="badge bg-primary me-1">${b}</span>`).join('') : 
+                    '<span class="text-muted">Без пільг</span>'}
+            </div>
+        </div>
+    `;
+    
+    // Показуємо у модальному вікні (створюємо якщо не існує)
+    let modal = document.getElementById('viewStudentModal');
+    if (!modal) {
+        const modalHTML = `
+            <div class="modal fade" id="viewStudentModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Деталі студента</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body" id="studentDetailsBody">
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрити</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        modal = document.getElementById('viewStudentModal');
+    }
+    
+    document.getElementById('studentDetailsBody').innerHTML = detailsHTML;
+    new bootstrap.Modal(modal).show();
+}
+
+// Видалення студента
+async function deleteStudent(id) {
+    const student = allStudents.find(s => s.id === id);
+    if (!student) {
+        showAlert('Студента не знайдено', 'danger');
+        return;
+    }
+    
+    if (!confirm(`Ви впевнені що хочете видалити студента "${student.first_name} ${student.last_name}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/students/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) throw new Error('Помилка видалення студента');
+        
+        // Перезавантажуємо дані
+        await loadAllStudentsData();
+        showAlert('Студента успішно видалено', 'success');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// Експорт даних студентів
+function exportStudentsData() {
+    // Отримуємо поточно відображені записи (після фільтрації)
+    const currentStudents = getCurrentlyDisplayedStudents();
+    exportStudentsToCSV(currentStudents, 'students_data');
+}
+
+function getCurrentlyDisplayedStudents() {
+    // Застосовуємо ті самі фільтри що і в filterStudents()
+    const nameFilter = document.getElementById('filterName').value.toLowerCase();
+    const ageGradeFilter = document.getElementById('filterAgeGrade').value.toLowerCase();
+    const phoneFilter = document.getElementById('filterPhone').value.toLowerCase();
+    const locationFilter = document.getElementById('filterLocation').value;
+    const benefitFilter = document.getElementById('filterBenefit').value;
+    
+    let filtered = allStudents;
+    
+    if (nameFilter) {
+        filtered = filtered.filter(s => `${s.first_name} ${s.last_name}`.toLowerCase().includes(nameFilter));
+    }
+    if (ageGradeFilter) {
+        filtered = filtered.filter(s => (s.age || '').toString().includes(ageGradeFilter) || (s.grade || '').toLowerCase().includes(ageGradeFilter));
+    }
+    if (phoneFilter) {
+        filtered = filtered.filter(s => [s.phone_child, s.phone_mother, s.phone_father].filter(Boolean).join(' ').toLowerCase().includes(phoneFilter));
+    }
+    if (locationFilter) {
+        filtered = filtered.filter(s => s.settlement_type === locationFilter);
+    }
+    if (benefitFilter) {
+        if (benefitFilter === 'no_benefits') {
+            filtered = filtered.filter(s => !s.benefit_low_income && !s.benefit_large_family && !s.benefit_military_family && !s.benefit_internally_displaced && !s.benefit_orphan && !s.benefit_disability && !s.benefit_social_risk);
+        } else {
+            filtered = filtered.filter(s => s[benefitFilter] === true);
+        }
+    }
+    
+    return filtered;
+}
+
+function exportStudentsToCSV(students, filename) {
+    if (students.length === 0) {
+        showAlert('Немає даних для експорту', 'warning');
+        return;
+    }
+    
+    const exportData = students.map(student => {
+        const benefits = [];
+        if (student.benefit_low_income) benefits.push('Малозабезпечені');
+        if (student.benefit_large_family) benefits.push('Багатодітні');
+        if (student.benefit_military_family) benefits.push('Сім\'я ЗСУ');
+        if (student.benefit_internally_displaced) benefits.push('ВПО');
+        if (student.benefit_orphan) benefits.push('Сирота/під опікою');
+        if (student.benefit_disability) benefits.push('Дитина з інвалідністю');
+        if (student.benefit_social_risk) benefits.push('СЖО');
+        
+        return {
+            'Ім\'я': student.first_name,
+            'Прізвище': student.last_name,
+            'Вік': student.age || '',
+            'Клас': student.grade || '',
+            'День народження': student.birth_date || '',
+            'Телефон дитини': student.phone_child || '',
+            'ПІБ батьків': student.parent_name || '',
+            'Телефон матері': student.phone_mother || '',
+            'Телефон батька': student.phone_father || '',
+            'Тип населеного пункту': student.settlement_type || '',
+            'Місце проживання': student.location || '',
+            'Адреса': student.address || '',
+            'Пільги': benefits.join(', ') || 'Без пільг'
+        };
+    });
+    
+    const csvContent = convertToCSV(exportData);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showAlert(`Експорт завершено: ${students.length} студентів`, 'success');
+}
+
+function convertToCSV(data) {
+    if (data.length === 0) return '';
+    const headers = Object.keys(data[0]);
+    const csvRows = [headers.join(',')];
+    
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header];
+            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+        });
+        csvRows.push(values.join(','));
+    });
+    
+    return csvRows.join('\n');
+}
+
+// Функції допоміжні
+function showAlert(message, type) {
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
+    }
+    
+    const toastId = 'toast-' + Date.now();
+    const toastDiv = document.createElement('div');
+    toastDiv.id = toastId;
+    toastDiv.className = `toast align-items-center text-bg-${type} border-0`;
+    toastDiv.role = 'alert';
+    toastDiv.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toastDiv);
+    
+    const toast = new bootstrap.Toast(toastDiv, { autohide: true, delay: 5000 });
+    toast.show();
+    
+    toastDiv.addEventListener('hidden.bs.toast', () => {
+        toastDiv.remove();
+    });
+}
+
+function showLoading(show = true) {
+    let spinner = document.getElementById('loadingSpinner');
+    if (!spinner && show) {
+        spinner = document.createElement('div');
+        spinner.id = 'loadingSpinner';
+        spinner.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Завантаження...</span></div>';
+        spinner.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;';
+        document.body.appendChild(spinner);
+    }
+    if (spinner) {
+        spinner.style.display = show ? 'block' : 'none';
+    }
+}
+
+// Завантаження даних при завантаженні сторінки
+document.addEventListener('DOMContentLoaded', () => {
+    loadAllStudentsData();
+});
+</script>
+{% endblock %}

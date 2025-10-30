@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* Стилі вчителів в стилі інших таблиць */
+#teachersTable {
+    margin-top: 20px;
+}
+
+/* STICKY COLUMN - Фіксована колонка "Повне ім'я" */
+.table-responsive {
+    position: relative;
+}
+
+/* Фіксація першого стовпця (Повне ім'я) */
+#teachersTable th:nth-child(1), 
+#teachersTable td:nth-child(1) { 
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background-color: #ffffff;
+    width: 200px;
+    min-width: 200px;
+    max-width: 200px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* тінь справа */
+    border-right: 2px solid #007bff; /* синя межа для кращої видимості */
+}
+
+/* Заголовок sticky стовпця має вищий z-index */
+#teachersTable thead th:nth-child(1) {
+    z-index: 11;
+    background-color: #f8f9fa; /* трохи сірий фон для заголовків */
+}
+
+/* Фільтр в sticky стовпці */
+#teachersTable .filter-row td:nth-child(1) {
+    background-color: #f8f9fa;
+    z-index: 10;
+}
+
+/* Специфічні розміри для інших колонок */
+#teachersTable th:nth-child(2), #teachersTable td:nth-child(2) { min-width: 140px; } /* Telegram */
+#teachersTable th:nth-child(3), #teachersTable td:nth-child(3) { min-width: 100px; } /* Статус */
+#teachersTable th:nth-child(4), #teachersTable td:nth-child(4) { min-width: 140px; } /* Дата створення */
+
+/* Заголовки без яскравих кольорів */
+#teachersTable thead th {
+    white-space: nowrap;
+    padding: 12px 8px;
+}
+
+/* Фільтри компактні */
+#teachersTable .filter-row td {
+    padding: 8px 6px;
+}
+
+#teachersTable .filter-input,
+#teachersTable .filter-select {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    min-width: 90px;
+}
+
+/* Статуси гуртків - центрування вже є в базових стилях */
+#teachersTable .club-status {
+    font-size: 1.1rem;
+}
+
+/* Кнопки дій */
+#teachersTable .btn-group .btn {
+    margin: 0 1px;
+    padding: 4px 8px;
+}
+
+/* Візуальний індикатор що стовпець зафіксований */
+#teachersTable th:nth-child(1):after {
+    content: " 📌";
+    font-size: 0.8em;
+    opacity: 0.6;
+}
+
+/* STICKY SCROLLBAR - Плаваючий горизонтальний скролбар */
+.sticky-scrollbar-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 25px;
+    padding: 10px 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    max-width: 80vw;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sticky-scrollbar-container.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.sticky-scrollbar {
+    width: 300px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+}
+
+.sticky-scrollbar-thumb {
+    height: 100%;
+    background: #007bff;
+    border-radius: 4px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 20px;
+    transition: background-color 0.2s ease;
+}
+
+.sticky-scrollbar-thumb:hover {
+    background: #0056b3;
+}
+
+.sticky-scrollbar-label {
+    color: white;
+    font-size: 0.75rem;
+    margin-bottom: 5px;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Додаткове покращення для основного скролбара */
+.table-responsive::-webkit-scrollbar {
+    height: 12px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #007bff;
+    border-radius: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #0056b3;
+}
+
+/* Responsive дизайн для sticky scrollbar */
+@media (max-width: 768px) {
+    .sticky-scrollbar-container {
+        bottom: 10px;
+        padding: 8px 15px;
+        max-width: 90vw;
+    }
+    
+    .sticky-scrollbar {
+        width: 250px;
+    }
+    
+    .sticky-scrollbar-label {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .sticky-scrollbar {
+        width: 200px;
+    }
+    
+    .sticky-scrollbar-container {
+        padding: 6px 12px;
+    }
+}
+
+/* Додаткова індикація що scrollbar активний */
+.sticky-scrollbar-container.visible {
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateX(-50%) translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+</style>
+
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>👨‍🏫 Управління вчителями</h2>
+        <small class="text-muted">
+            📌 Стовпець "Повне ім'я" зафіксований при прокручуванні
+        </small>
+    </div>
+    <div class="btn-group">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+            <i class="bi bi-plus-circle"></i> Додати вчителя
+        </button>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-file-earmark-excel"></i> Імпорт Excel
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="downloadTeachersTemplate()">
+                    <i class="bi bi-download"></i> Скачати шаблон
+                </a></li>
+                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#importTeachersModal">
+                    <i class="bi bi-upload"></i> Імпорт вчителів
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" onclick="exportTeachersExcel()">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> Експорт в Excel
+                </a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive" id="teachersTableContainer">
+            <table class="table table-hover" id="teachersTable">
+                <thead id="teachersTableHead">
+                    <!-- Динамічно генерується в JavaScript -->
+                </thead>
+                <tbody id="teachersTableBody">
+                    <!-- Динамічно генерується в JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Статистика вчителів</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Всього вчителів:</strong> {{ teachers|length }}</p>
+                    <p><strong>Активних:</strong> {{ teachers|selectattr('active')|list|length }}</p>
+                    <p><strong>З Telegram:</strong> {{ teachers|selectattr('tg_username')|list|length }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Швидкі дії</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addTeacherModal">
+                            <i class="bi bi-person-plus"></i> Додати нового вчителя
+                        </button>
+                        <button type="button" class="btn btn-outline-info" onclick="exportTeachers()">
+                            <i class="bi bi-download"></i> Експорт списку
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Teacher Modal -->
+<div class="modal fade" id="addTeacherModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Додати нового вчителя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addTeacherForm">
+                    <div class="mb-3">
+                        <label for="fullName" class="form-label">Повне ім'я *</label>
+                        <input type="text" class="form-control" id="fullName" name="fullName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tgUsername" class="form-label">Telegram username</label>
+                        <div class="input-group">
+                            <span class="input-group-text">@</span>
+                            <input type="text" class="form-control" id="tgUsername" name="tgUsername" placeholder="username">
+                        </div>
+                        <div class="form-text">Опціонально - для інформації</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tgChatId" class="form-label">Telegram Chat ID</label>
+                        <input type="number" class="form-control" id="tgChatId" name="tgChatId" placeholder="123456789">
+                        <div class="form-text">Вчитель отримує цей номер натиснувши /start в боті. Потрібен для розсилки повідомлень.</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="active" name="active" checked>
+                            <label class="form-check-label" for="active">
+                                Активний вчитель
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" onclick="saveTeacher()">Зберегти</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Teacher Modal -->
+<div class="modal fade" id="editTeacherModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редагувати вчителя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editTeacherForm">
+                    <input type="hidden" id="editTeacherId">
+                    <div class="mb-3">
+                        <label for="editFullName" class="form-label">Повне ім'я *</label>
+                        <input type="text" class="form-control" id="editFullName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTgUsername" class="form-label">Telegram username</label>
+                        <div class="input-group">
+                            <span class="input-group-text">@</span>
+                            <input type="text" class="form-control" id="editTgUsername" placeholder="username">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTgChatId" class="form-label">Telegram Chat ID</label>
+                        <input type="number" class="form-control" id="editTgChatId" placeholder="123456789">
+                        <div class="form-text">ID чату в Telegram</div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="editActive">
+                            <label class="form-check-label" for="editActive">
+                                Активний вчитель
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" onclick="updateTeacher()">Зберегти зміни</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Teachers Modal -->
+<div class="modal fade" id="importTeachersModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">📊 Імпорт вчителів з Excel файлу</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> Інструкції:</h6>
+                    <ul class="mb-0">
+                        <li>Скачайте шаблон Excel файлу для вчителів</li>
+                        <li>Заповніть його даними вчителів</li>
+                        <li>Завантажте заповнений файл для автоматичного імпорту</li>
+                        <li><strong>Обов'язкове поле:</strong> "Повне ім'я"</li>
+                        <li><strong>Опціональні поля:</strong> Telegram Username, Chat ID, Активний статус</li>
+                    </ul>
+                </div>
+                
+                <form id="importTeachersForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="teachersExcelFile" class="form-label">Виберіть Excel файл *</label>
+                        <input type="file" class="form-control" id="teachersExcelFile" name="teachersExcelFile" 
+                               accept=".xlsx,.xls" required>
+                        <div class="form-text">Підтримувані формати: .xlsx, .xls</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="skipTeachersDuplicates" name="skipTeachersDuplicates" checked>
+                            <label class="form-check-label" for="skipTeachersDuplicates">
+                                Пропускати дублікати (по повному імені)
+                            </label>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Прогрес імпорту -->
+                <div id="importTeachersProgress" style="display: none;">
+                    <div class="progress mb-3">
+                        <div class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div id="importTeachersStatus" class="text-muted"></div>
+                </div>
+                
+                <!-- Результати імпорту -->
+                <div id="importTeachersResults" style="display: none;">
+                    <div class="alert alert-success">
+                        <h6><i class="bi bi-check-circle"></i> Результати імпорту:</h6>
+                        <div id="importTeachersSummary"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрити</button>
+                <button type="button" class="btn btn-outline-primary" onclick="downloadTeachersTemplate()">
+                    <i class="bi bi-download"></i> Скачати шаблон
+                </button>
+                <button type="button" class="btn btn-primary" onclick="importTeachers()">
+                    <i class="bi bi-upload"></i> Імпортувати
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Плаваючий горизонтальний скролбар -->
+<div class="sticky-scrollbar-container" id="stickyScrollbar">
+    <div class="sticky-scrollbar-label">📊 Прокрутка таблиці</div>
+    <div class="sticky-scrollbar" id="stickyScrollbarTrack">
+        <div class="sticky-scrollbar-thumb" id="stickyScrollbarThumb"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- JavaScript функції тепер в admin.js -->
+{% endblock %}

@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>📱 Управління TG Ботом</h2>
+    <button type="button" class="btn btn-primary" onclick="openAddBotScheduleModal()">
+        <i class="bi bi-plus-circle"></i> Додати розсилку
+    </button>
+</div>
+
+<!-- Статистика -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">Активних розсилок</h5>
+                <h3 id="activeCount" class="text-success">-</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">Вимкнених</h5>
+                <h3 id="disabledCount" class="text-warning">-</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">Всього розкладів</h5>
+                <h3 id="totalSchedules" class="text-info">-</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">Без розсилок</h5>
+                <h3 id="withoutBotCount" class="text-muted">-</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Фільтри -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <label for="filterStatus" class="form-label">Статус</label>
+                <select class="form-select" id="filterStatus" onchange="filterBotSchedules()">
+                    <option value="">Всі статуси</option>
+                    <option value="enabled">Активні</option>
+                    <option value="disabled">Вимкнені</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="filterClub" class="form-label">Гурток</label>
+                <select class="form-select" id="filterClub" onchange="filterBotSchedules()">
+                    <option value="">Всі гуртки</option>
+                    <!-- Заповнюється динамічно -->
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="filterTeacher" class="form-label">Вчитель</label>
+                <select class="form-select" id="filterTeacher" onchange="filterBotSchedules()">
+                    <option value="">Всі вчителі</option>
+                    <!-- Заповнюється динамічно -->
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="filterWeekday" class="form-label">День тижня</label>
+                <select class="form-select" id="filterWeekday" onchange="filterBotSchedules()">
+                    <option value="">Всі дні</option>
+                    <option value="1">Понеділок</option>
+                    <option value="2">Вівторок</option>
+                    <option value="3">Середа</option>
+                    <option value="4">Четвер</option>
+                    <option value="5">П'ятниця</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Таблиця розсилок -->
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="botSchedulesTable">
+                <thead>
+                    <tr>
+                        <th>Гурток</th>
+                        <th>Вчитель</th>
+                        <th>День / Час</th>
+                        <th>Група</th>
+                        <th>Час розсилки</th>
+                        <th>Статус</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody id="botSchedulesTableBody">
+                    <!-- Заповнюється динамічно -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Bot Schedule Modal -->
+<div class="modal fade" id="addBotScheduleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Додати розсилку боту</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addBotScheduleForm">
+                    <div class="mb-3">
+                        <label for="scheduleSelect" class="form-label">Розклад *</label>
+                        <select class="form-select" id="scheduleSelect" name="scheduleId" required>
+                            <option value="">Оберіть розклад</option>
+                            <!-- Заповнюється динамічно -->
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Час розсилки</label>
+                        
+                        <div class="mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="timeMode" id="offsetMode" value="offset" checked onchange="toggleTimeMode()">
+                                <label class="form-check-label" for="offsetMode">
+                                    Відносно початку заняття
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="timeMode" id="exactMode" value="exact" onchange="toggleTimeMode()">
+                                <label class="form-check-label" for="exactMode">
+                                    Точний час
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div id="offsetSection">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <select class="form-select" id="offsetMinutes" name="offsetMinutes">
+                                        <option value="-15">За 15 хв до початку</option>
+                                        <option value="-10">За 10 хв до початку</option>
+                                        <option value="-5">За 5 хв до початку</option>
+                                        <option value="0" selected>На початку заняття</option>
+                                        <option value="5">Через 5 хв після початку</option>
+                                        <option value="10">Через 10 хв після початку</option>
+                                        <option value="15">Через 15 хв після початку</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="number" class="form-control" id="customOffset" placeholder="Або вкажіть хвилини" 
+                                           onchange="updateOffsetSelect()">
+                                    <small class="form-text text-muted">Негативне значення = до початку</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="exactTimeSection" style="display: none;">
+                            <input type="time" class="form-control" id="customTime" name="customTime">
+                            <small class="form-text text-muted">Розсилка буде о цьому часі незалежно від початку заняття</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="customMessage" class="form-label">Кастомне повідомлення (опціонально)</label>
+                        <textarea class="form-control" id="customMessage" name="customMessage" rows="3" 
+                                  placeholder="Залиште порожнім для стандартного повідомлення"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="enabledCheck" name="enabled" checked>
+                            <label class="form-check-label" for="enabledCheck">
+                                Активувати розсилку одразу
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" onclick="saveBotSchedule()">Створити розсилку</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Bot Schedule Modal -->
+<div class="modal fade" id="editBotScheduleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редагувати розсилку боту</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editBotScheduleForm">
+                    <input type="hidden" id="editBotScheduleId">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Розклад</label>
+                        <div id="scheduleInfo" class="form-control-plaintext bg-light p-2 rounded">
+                            <!-- Заповнюється динамічно -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Час розсилки</label>
+                        
+                        <div class="mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="editTimeMode" id="editOffsetMode" value="offset" checked onchange="toggleEditTimeMode()">
+                                <label class="form-check-label" for="editOffsetMode">
+                                    Відносно початку заняття
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="editTimeMode" id="editExactMode" value="exact" onchange="toggleEditTimeMode()">
+                                <label class="form-check-label" for="editExactMode">
+                                    Точний час
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div id="editOffsetSection">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <select class="form-select" id="editOffsetMinutes" name="offsetMinutes">
+                                        <option value="-15">За 15 хв до початку</option>
+                                        <option value="-10">За 10 хв до початку</option>
+                                        <option value="-5">За 5 хв до початку</option>
+                                        <option value="0">На початку заняття</option>
+                                        <option value="5">Через 5 хв після початку</option>
+                                        <option value="10">Через 10 хв після початку</option>
+                                        <option value="15">Через 15 хв після початку</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="number" class="form-control" id="editCustomOffset" placeholder="Або вкажіть хвилини" 
+                                           onchange="updateEditOffsetSelect()">
+                                    <small class="form-text text-muted">Негативне значення = до початку</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="editExactTimeSection" style="display: none;">
+                            <input type="time" class="form-control" id="editCustomTime" name="customTime">
+                            <small class="form-text text-muted">Розсилка буде о цьому часі незалежно від початку заняття</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editCustomMessage" class="form-label">Кастомне повідомлення</label>
+                        <textarea class="form-control" id="editCustomMessage" name="customMessage" rows="3" 
+                                  placeholder="Залиште порожнім для стандартного повідомлення"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="editEnabledCheck" name="enabled">
+                            <label class="form-check-label" for="editEnabledCheck">
+                                Активна розсилка
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" onclick="updateBotSchedule()">Зберегти зміни</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- JavaScript функції в admin.js -->
+{% endblock %}

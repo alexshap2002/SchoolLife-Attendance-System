@@ -1,0 +1,619 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* Стилі аналітики в стилі таблиць вчителів/учнів */
+.analytics-table {
+    margin-top: 20px;
+}
+
+/* Специфічні розміри для колонок */
+.analytics-table th:nth-child(1), .analytics-table td:nth-child(1) { min-width: 120px; } /* Прізвище */
+.analytics-table th:nth-child(2), .analytics-table td:nth-child(2) { min-width: 100px; } /* Ім'я */
+.analytics-table th:nth-child(3), .analytics-table td:nth-child(3) { min-width: 100px; } /* Д.Н. */
+.analytics-table th:nth-child(4), .analytics-table td:nth-child(4) { min-width: 80px; } /* Клас */
+.analytics-table th:nth-child(5), .analytics-table td:nth-child(5) { min-width: 120px; } /* Тел.батька */
+.analytics-table th:nth-child(6), .analytics-table td:nth-child(6) { min-width: 120px; } /* Тел.матері */
+.analytics-table th:nth-child(7), .analytics-table td:nth-child(7) { min-width: 120px; } /* Тел.дитини */
+
+/* Заголовки без яскравих кольорів */
+.analytics-table thead th {
+    white-space: nowrap;
+    padding: 12px 8px;
+}
+
+/* Фільтри компактні */
+.analytics-table .filter-row td {
+    padding: 8px 6px;
+}
+
+.analytics-table .filter-input,
+.analytics-table .filter-select {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    min-width: 90px;
+}
+
+/* Дати уроків - центрування */
+.analytics-table .lesson-date {
+    text-align: center;
+    font-size: 1.2rem;
+    min-width: 80px;
+}
+
+/* STICKY COLUMNS - Фіксовані стовпці "Прізвище" та "Ім'я" як в таблиці учнів */
+.table-responsive {
+    position: relative;
+}
+
+/* Фіксація першого стовпця (Прізвище) */
+.analytics-table th:nth-child(1), 
+.analytics-table td:nth-child(1) { 
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background-color: #ffffff;
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* тінь справа */
+    border-right: 1px solid #dee2e6; /* легка межа */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 8px 6px;
+    font-weight: 500; /* трохи жирніший текст для кращої видимості */
+}
+
+/* Фіксація другого стовпця (Ім'я) */
+.analytics-table th:nth-child(2), 
+.analytics-table td:nth-child(2) { 
+    position: sticky;
+    left: 120px; /* зміщення на ширину першого стовпця */
+    z-index: 10;
+    background-color: #ffffff;
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* тінь справа */
+    border-right: 2px solid #007bff; /* синя межа для кращої видимості */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 8px 6px;
+    font-weight: 500;
+}
+
+/* Заголовки sticky стовпців мають вищий z-index */
+.analytics-table thead th:nth-child(1),
+.analytics-table thead th:nth-child(2) {
+    z-index: 11;
+    background-color: #f8f9fa; /* трохи сірий фон для заголовків */
+}
+
+/* Фільтри в sticky стовпцях */
+.analytics-table .filter-row td:nth-child(1),
+.analytics-table .filter-row td:nth-child(2) {
+    background-color: #f8f9fa;
+    z-index: 10;
+}
+
+/* Додаткові стилі для кращого відображення sticky стовпців */
+.analytics-table tbody tr:hover td:nth-child(1),
+.analytics-table tbody tr:hover td:nth-child(2) {
+    background-color: #f1f3f4 !important; /* світло-сірий при hover */
+}
+
+/* Візуальний індикатор що стовпці зафіксовані */
+.analytics-table th:nth-child(1):after {
+    content: " 📌";
+    font-size: 0.8em;
+    opacity: 0.6;
+}
+
+.analytics-table th:nth-child(2):after {
+    content: " 📌";
+    font-size: 0.8em;
+    opacity: 0.6;
+}
+
+/* Регулярні колонки (не sticky) */
+.analytics-table th:nth-child(3), .analytics-table td:nth-child(3) { min-width: 100px; } /* Д.Н. */
+.analytics-table th:nth-child(4), .analytics-table td:nth-child(4) { min-width: 80px; } /* Клас */
+.analytics-table th:nth-child(5), .analytics-table td:nth-child(5) { min-width: 120px; } /* Тел.батька */
+.analytics-table th:nth-child(6), .analytics-table td:nth-child(6) { min-width: 120px; } /* Тел.матері */
+.analytics-table th:nth-child(7), .analytics-table td:nth-child(7) { min-width: 120px; } /* Тел.дитини */
+</style>
+
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>📊 Аналітика відвідуваності</h2>
+    <div class="d-flex gap-2">
+        <button class="btn btn-success" onclick="exportAnalyticsData()" id="exportBtn" disabled>
+            <i class="bi bi-download"></i> Експорт Excel
+        </button>
+        <button class="btn btn-info" onclick="showAnalyticsHelp()">
+            <i class="bi bi-question-circle"></i> Довідка
+        </button>
+    </div>
+</div>
+
+<!-- Селектор гуртка -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="clubFilter" class="form-label">Оберіть гурток для аналізу:</label>
+                <select class="form-select" id="clubFilter" onchange="loadAnalyticsData()">
+                    <option value="">-- Оберіть гурток --</option>
+                    {% for club in clubs %}
+                    <option value="{{ club.id }}">{{ club.name }} ({{ club.location }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <div class="text-muted" id="analyticsStats"></div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end justify-content-end">
+                <button class="btn btn-primary" onclick="loadAnalyticsData()" id="loadBtn" disabled>
+                    <i class="bi bi-table"></i> Завантажити дані
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Контейнер для таблиць аналітики (по одній для кожного розкладу) -->
+<div id="analyticsCard" style="display: none;">
+    <div id="analyticsTablesContainer">
+        <!-- Таблиці будуть генеруватися динамічно для кожного розкладу -->
+    </div>
+</div>
+
+<!-- Плейсхолдер -->
+<div class="card text-center py-5" id="placeholder">
+    <div class="card-body">
+        <i class="bi bi-table text-muted" style="font-size: 3rem;"></i>
+        <h5 class="text-muted mt-3">Аналітика відвідуваності по розкладах</h5>
+        <p class="text-muted">
+            Оберіть гурток щоб переглянути детальні таблиці відвідуваності.<br>
+            <strong>Нова логіка:</strong> Кожен активний розклад гуртка отримає окрему таблицю<br>
+            (наприклад: "Понеділок 17:00" і "Понеділок 18:00" - окремі таблиці).
+        </p>
+    </div>
+</div>
+
+<!-- Індикатор завантаження -->
+<div class="text-center py-5" id="loadingIndicator" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Завантаження...</span>
+    </div>
+    <p class="text-muted mt-3">Завантаження аналітичних даних...</p>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let analyticsData = null;
+
+// Ініціалізація сторінки
+document.addEventListener('DOMContentLoaded', function() {
+    const clubFilter = document.getElementById('clubFilter');
+    const loadBtn = document.getElementById('loadBtn');
+    clubFilter.addEventListener('change', function() {
+        loadBtn.disabled = !this.value;
+    });
+});
+
+// Завантаження аналітичних даних
+async function loadAnalyticsData() {
+    const clubId = document.getElementById('clubFilter').value;
+    if (!clubId) {
+        showAlert('Оберіть гурток для завантаження даних', 'warning');
+        return;
+    }
+
+    try {
+        showLoading(true);
+        hideElements(['placeholder', 'analyticsCard']);
+        
+        const response = await fetch(`/api/analytics/club/${clubId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        analyticsData = await response.json();
+        showLoading(false);
+        
+        console.log('📊 [ANALYTICS] Отримано дані:', analyticsData);
+        
+        if (!analyticsData.schedules || analyticsData.schedules.length === 0) {
+            showAlert('Для цього гуртка немає активних розкладів з учнями', 'info');
+            return;
+        }
+        
+        renderAnalyticsTable();
+        
+    } catch (error) {
+        showLoading(false);
+        console.error('❌ Помилка завантаження аналітичних даних:', error);
+        showAlert('Помилка завантаження аналітичних даних: ' + error.message, 'danger');
+    }
+}
+
+// Відображення таблиці аналітики
+function renderAnalyticsTable() {
+    buildAnalyticsTables();
+    showElements(['analyticsCard']);
+    updateAnalyticsStats();
+    document.getElementById('exportBtn').disabled = false;
+}
+
+// Побудова таблиць аналітики (окремо для кожного розкладу)
+function buildAnalyticsTables() {
+    const container = document.getElementById('analyticsTablesContainer');
+    if (!container) {
+        console.error('❌ Контейнер таблиць аналітики не знайдений');
+        return;
+    }
+    
+    container.innerHTML = ''; // Очищуємо контейнер
+    
+    if (!analyticsData.schedules || analyticsData.schedules.length === 0) {
+        container.innerHTML = '<div class="alert alert-info">Немає розкладів для відображення</div>';
+        return;
+    }
+    
+    // Створюємо окрему таблицю для кожного розкладу
+    analyticsData.schedules.forEach((schedule, scheduleIndex) => {
+        const scheduleCard = document.createElement('div');
+        scheduleCard.className = 'card shadow mb-4';
+        scheduleCard.id = `scheduleCard_${scheduleIndex}`;
+        
+        const cardHeader = document.createElement('div');
+        cardHeader.className = 'card-header bg-primary text-white';
+        cardHeader.innerHTML = `
+            <h5 class="mb-0">
+                <i class="bi bi-calendar3"></i> 
+                ${schedule.schedule_name} 
+                ${schedule.teacher ? `(${schedule.teacher.name})` : ''}
+                <span class="badge bg-light text-dark ms-2">${schedule.group_name}</span>
+            </h5>
+            <small>Учнів: ${schedule.students.length} | Проведено уроків: ${schedule.lesson_dates.length}</small>
+        `;
+        
+        const cardBody = document.createElement('div');
+        cardBody.className = 'card-body';
+        
+        if (schedule.students.length === 0) {
+            cardBody.innerHTML = '<div class="alert alert-warning">На цей розклад немає записаних учнів</div>';
+        } else if (schedule.lesson_dates.length === 0) {
+            cardBody.innerHTML = '<div class="alert alert-info">Для цього розкладу ще немає проведених уроків</div>';
+        } else {
+            const tableResponsive = document.createElement('div');
+            tableResponsive.className = 'table-responsive';
+            
+            const table = document.createElement('table');
+            table.className = 'table table-hover table-sm analytics-table';
+            table.id = `analyticsTable_${scheduleIndex}`;
+            
+            // Створюємо заголовок таблиці
+            const thead = document.createElement('thead');
+            thead.innerHTML = buildTableHeader(schedule, scheduleIndex);
+            
+            // Створюємо тіло таблиці
+            const tbody = document.createElement('tbody');
+            tbody.id = `analyticsTableBody_${scheduleIndex}`;
+            tbody.innerHTML = buildTableBody(schedule, scheduleIndex);
+            
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            tableResponsive.appendChild(table);
+            cardBody.appendChild(tableResponsive);
+        }
+        
+        scheduleCard.appendChild(cardHeader);
+        scheduleCard.appendChild(cardBody);
+        container.appendChild(scheduleCard);
+    });
+}
+
+// Створюємо заголовок таблиці для конкретного розкладу
+function buildTableHeader(schedule, scheduleIndex) {
+    let headerHTML = `
+        <tr class="table-dark">
+            <th>Прізвище</th>
+            <th>Ім'я</th>
+            <th>Д.Н.</th>
+            <th>Клас</th>
+            <th>Тел. батька</th>
+            <th>Тел. матері</th>
+            <th>Тел. дитини</th>`;
+    
+    // Додаємо колонки для дат уроків
+    schedule.lesson_dates.forEach(date => {
+        headerHTML += `<th class="text-center lesson-date" title="Урок від ${date}">${date}</th>`;
+    });
+    
+    headerHTML += `</tr>`;
+    
+    // Додаємо рядок фільтрів
+    headerHTML += `
+        <tr class="filter-row bg-light">
+            <td>
+                <input type="text" class="form-control form-control-sm filter-input" 
+                       id="filterLastName_${scheduleIndex}" 
+                       placeholder="Прізвище" 
+                       onkeyup="filterScheduleData(${scheduleIndex})">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm filter-input" 
+                       id="filterFirstName_${scheduleIndex}" 
+                       placeholder="Ім'я" 
+                       onkeyup="filterScheduleData(${scheduleIndex})">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm filter-input" 
+                       id="filterBirthDate_${scheduleIndex}" 
+                       placeholder="Д.Н." 
+                       onkeyup="filterScheduleData(${scheduleIndex})">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm filter-input" 
+                       id="filterClass_${scheduleIndex}" 
+                       placeholder="Клас" 
+                       onkeyup="filterScheduleData(${scheduleIndex})">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm filter-input" 
+                       id="filterPhoneFather_${scheduleIndex}" 
+                       placeholder="Тел. батька" 
+                       onkeyup="filterScheduleData(${scheduleIndex})">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm filter-input" 
+                       id="filterPhoneMother_${scheduleIndex}" 
+                       placeholder="Тел. матері" 
+                       onkeyup="filterScheduleData(${scheduleIndex})">
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm filter-input" 
+                       id="filterPhoneChild_${scheduleIndex}" 
+                       placeholder="Тел. дитини" 
+                       onkeyup="filterScheduleData(${scheduleIndex})">
+            </td>`;
+    
+    // Додаємо фільтри для дат уроків
+    schedule.lesson_dates.forEach((date, dateIndex) => {
+        headerHTML += `
+            <td class="text-center">
+                <select class="form-select form-select-sm filter-select" 
+                        id="filterLesson_${scheduleIndex}_${dateIndex}" 
+                        onchange="filterScheduleData(${scheduleIndex})">
+                    <option value="">Всі</option>
+                    <option value="present">✅ Присутні</option>
+                    <option value="absent">❌ Відсутні</option>
+                    <option value="no_mark">⚪ Без відмітки</option>
+                </select>
+            </td>`;
+    });
+    
+    headerHTML += `</tr>`;
+    
+    return headerHTML;
+}
+
+// Створюємо тіло таблиці для конкретного розкладу  
+function buildTableBody(schedule, scheduleIndex) {
+    let bodyHTML = '';
+    
+    schedule.students.forEach(student => {
+        bodyHTML += `
+            <tr id="studentRow_${scheduleIndex}_${student.id}">
+                <td title="${student.last_name}">${student.last_name}</td>
+                <td title="${student.first_name}">${student.first_name}</td>
+                <td>${student.birth_date}</td>
+                <td>${student.school_class}</td>
+                <td>${student.phone_father || '—'}</td>
+                <td>${student.phone_mother || '—'}</td>
+                <td>${student.phone_child || '—'}</td>`;
+        
+        // Додаємо відмітки відвідуваності
+        student.attendance.forEach(attendance => {
+            let icon, bgColor, title;
+            
+            if (attendance.status === 'PRESENT') {
+                icon = '✅';
+                bgColor = '#d4edda';
+                title = `${student.first_name} був присутній ${attendance.date}`;
+            } else if (attendance.status === 'ABSENT') {
+                icon = '❌';
+                bgColor = '#f8d7da';
+                title = `${student.first_name} був відсутній ${attendance.date}`;
+            } else {
+                icon = '⚪';
+                bgColor = '#f8f9fa';
+                title = `Відмітки для ${student.first_name} на ${attendance.date} немає`;
+            }
+            
+            bodyHTML += `
+                <td class="text-center lesson-date" 
+                    style="background-color: ${bgColor}; cursor: pointer;" 
+                    title="${title}"
+                    onclick="toggleAttendanceFromAnalytics(${student.id}, ${attendance.lesson_event_id})">
+                    ${icon}
+                </td>`;
+        });
+        
+        bodyHTML += `</tr>`;
+    });
+    
+    return bodyHTML;
+}
+
+// Фільтрація даних для конкретного розкладу
+function filterScheduleData(scheduleIndex) {
+    const schedule = analyticsData.schedules[scheduleIndex];
+    if (!schedule) return;
+    
+    // Отримуємо значення фільтрів
+    const filters = {
+        lastName: document.getElementById(`filterLastName_${scheduleIndex}`)?.value.toLowerCase() || '',
+        firstName: document.getElementById(`filterFirstName_${scheduleIndex}`)?.value.toLowerCase() || '',
+        birthDate: document.getElementById(`filterBirthDate_${scheduleIndex}`)?.value.toLowerCase() || '',
+        schoolClass: document.getElementById(`filterClass_${scheduleIndex}`)?.value.toLowerCase() || '',
+        phoneFather: document.getElementById(`filterPhoneFather_${scheduleIndex}`)?.value.toLowerCase() || '',
+        phoneMother: document.getElementById(`filterPhoneMother_${scheduleIndex}`)?.value.toLowerCase() || '',
+        phoneChild: document.getElementById(`filterPhoneChild_${scheduleIndex}`)?.value.toLowerCase() || ''
+    };
+    
+    // Отримуємо фільтри для дат уроків
+    const lessonFilters = {};
+    schedule.lesson_dates.forEach((date, dateIndex) => {
+        const filterElement = document.getElementById(`filterLesson_${scheduleIndex}_${dateIndex}`);
+        if (filterElement) {
+            lessonFilters[dateIndex] = filterElement.value;
+        }
+    });
+    
+    // Фільтруємо учнів
+    schedule.students.forEach(student => {
+        const row = document.getElementById(`studentRow_${scheduleIndex}_${student.id}`);
+        if (!row) return;
+        
+        let showRow = true;
+        
+        // Перевіряємо текстові фільтри
+        if (filters.lastName && !student.last_name.toLowerCase().includes(filters.lastName)) showRow = false;
+        if (filters.firstName && !student.first_name.toLowerCase().includes(filters.firstName)) showRow = false;
+        if (filters.birthDate && !student.birth_date.toLowerCase().includes(filters.birthDate)) showRow = false;
+        if (filters.schoolClass && !student.school_class.toLowerCase().includes(filters.schoolClass)) showRow = false;
+        if (filters.phoneFather && !(student.phone_father || '').toLowerCase().includes(filters.phoneFather)) showRow = false;
+        if (filters.phoneMother && !(student.phone_mother || '').toLowerCase().includes(filters.phoneMother)) showRow = false;
+        if (filters.phoneChild && !(student.phone_child || '').toLowerCase().includes(filters.phoneChild)) showRow = false;
+        
+        // Перевіряємо фільтри відвідуваності
+        for (const [dateIndex, filterValue] of Object.entries(lessonFilters)) {
+            if (!filterValue) continue;
+            
+            const attendance = student.attendance[parseInt(dateIndex)];
+            if (!attendance) continue;
+            
+            let statusMatch = false;
+            if (filterValue === 'present' && attendance.status === 'PRESENT') statusMatch = true;
+            if (filterValue === 'absent' && attendance.status === 'ABSENT') statusMatch = true;
+            if (filterValue === 'no_mark' && !attendance.status) statusMatch = true;
+            
+            if (!statusMatch) {
+                showRow = false;
+                break;
+            }
+        }
+        
+        row.style.display = showRow ? '' : 'none';
+    });
+}
+
+// Оновлення статистики
+function updateAnalyticsStats() {
+    if (!analyticsData || !analyticsData.schedules) return;
+    
+    let totalStudents = 0;
+    let totalLessons = 0;
+    
+    analyticsData.schedules.forEach(schedule => {
+        totalStudents += schedule.students.length;
+        totalLessons += schedule.lesson_dates.length;
+    });
+    
+    const statsElement = document.getElementById('analyticsStats');
+    if (statsElement) {
+        statsElement.innerHTML = `
+            <div><strong>${analyticsData.club.name}</strong></div>
+            <div>Розкладів: ${analyticsData.schedules.length} | Учнів: ${totalStudents} | Уроків: ${totalLessons}</div>
+        `;
+    }
+}
+
+// Переключення відвідуваності з аналітики
+async function toggleAttendanceFromAnalytics(studentId, lessonEventId) {
+    try {
+        const response = await fetch(`/api/attendance/toggle`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                student_id: studentId,
+                lesson_event_id: lessonEventId
+            })
+        });
+        
+        if (response.ok) {
+            // Перезавантажуємо дані
+            await loadAnalyticsData();
+        } else {
+            throw new Error('Failed to toggle attendance');
+        }
+    } catch (error) {
+        console.error('Error toggling attendance:', error);
+        showAlert('Помилка при зміні відвідуваності', 'danger');
+    }
+}
+
+// Експорт даних
+function exportAnalyticsData() {
+    if (!analyticsData) {
+        showAlert('Немає даних для експорту', 'warning');
+        return;
+    }
+    
+    showAlert('Експорт даних поки що в розробці', 'info');
+}
+
+// Довідка
+function showAnalyticsHelp() {
+    showAlert(`
+        <h6>📊 Нова логіка аналітики відвідуваності</h6>
+        <p><strong>Що змінилося:</strong></p>
+        <ul>
+            <li>Кожен активний розклад гуртка має окрему таблицю</li>
+            <li>Учні групуються по розкладах, а не змішуються</li>
+            <li>Відмітки відвідуваності тільки для уроків конкретного розкладу</li>
+        </ul>
+        <p><strong>Приклад:</strong> Якщо гурток "Танці" має розклади "Понеділок 17:00" і "Понеділок 18:00", 
+        то ви побачите 2 окремі таблиці з учнями та відмітками для кожного часу.</p>
+    `, 'info');
+}
+
+// Допоміжні функції
+function showLoading(show) {
+    const indicator = document.getElementById('loadingIndicator');
+    if (indicator) {
+        indicator.style.display = show ? 'block' : 'none';
+    }
+}
+
+function hideElements(elementIds) {
+    elementIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.style.display = 'none';
+    });
+}
+
+function showElements(elementIds) {
+    elementIds.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) element.style.display = 'block';
+    });
+}
+
+function showAlert(message, type = 'info') {
+    // Простий alert замість складної системи сповіщень
+    alert(message);
+}
+</script>
+{% endblock %}

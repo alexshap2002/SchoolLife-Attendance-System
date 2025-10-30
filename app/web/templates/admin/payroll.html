@@ -1,0 +1,1173 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* Стилі зарплат в стилі інших таблиць */
+#payrollTable {
+    margin-top: 20px;
+}
+
+/* Специфічні розміри для колонок */
+#payrollTable th:nth-child(1), #payrollTable td:nth-child(1) { min-width: 120px; } /* Дата */
+#payrollTable th:nth-child(2), #payrollTable td:nth-child(2) { min-width: 150px; } /* Вчитель */
+#payrollTable th:nth-child(3), #payrollTable td:nth-child(3) { min-width: 120px; } /* Гурток */
+#payrollTable th:nth-child(4), #payrollTable td:nth-child(4) { min-width: 100px; } /* Основа */
+#payrollTable th:nth-child(5), #payrollTable td:nth-child(5) { min-width: 100px; } /* Сума */
+#payrollTable th:nth-child(6), #payrollTable td:nth-child(6) { min-width: 200px; } /* Примітка */
+#payrollTable th:nth-child(7), #payrollTable td:nth-child(7) { min-width: 80px; }  /* Дії */
+
+/* Заголовки без яскравих кольорів */
+#payrollTable thead th {
+    white-space: nowrap;
+    padding: 12px 8px;
+}
+
+/* Фільтри компактні */
+#payrollTable .filter-row td {
+    padding: 8px 6px;
+}
+
+#payrollTable .filter-input,
+#payrollTable .filter-select {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    min-width: 90px;
+}
+
+/* Кнопки дій */
+#payrollTable .btn-group .btn {
+    margin: 0 1px;
+    padding: 4px 8px;
+}
+
+/* Статистика карточки */
+.stats-card {
+    margin-top: 20px;
+}
+</style>
+
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>💰 Управління зарплатою</h2>
+    <div class="btn-group">
+        <button type="button" class="btn btn-success" onclick="openAddPayrollModal()">
+            <i class="bi bi-plus-circle"></i> Додати зарплату
+        </button>
+        <button type="button" class="btn btn-outline-primary" onclick="exportCurrentData()">
+            <i class="bi bi-download"></i> Експорт
+        </button>
+        <button type="button" class="btn btn-primary" onclick="openCalculateModal()">
+            <i class="bi bi-calculator"></i> Розрахувати зарплату
+        </button>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="payrollTable">
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Вчитель</th>
+                        <th>Гурток</th>
+                        <th>Основа</th>
+                        <th>Сума</th>
+                        <th>Примітка</th>
+                        <th>Дії</th>
+                    </tr>
+                    <!-- Рядок фільтрів -->
+                    <tr class="filter-row">
+                        <td>
+                            <input type="date" class="form-control form-control-sm filter-input" id="filterDate" 
+                                   onchange="filterPayroll()">
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterTeacher" onchange="filterPayroll()">
+                                <option value="">Всі вчителі</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterClub" onchange="filterPayroll()">
+                                <option value="">Всі гуртки</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterBasis" onchange="filterPayroll()">
+                                <option value="">Всі основи</option>
+                                <option value="AUTO">Автоматично</option>
+                                <option value="MANUAL">Вручну</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm filter-input" id="filterAmount" 
+                                   placeholder="Сума від..." min="0" step="0.01" onkeyup="filterPayroll()">
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm filter-input" id="filterNote" 
+                                   placeholder="Пошук в примітках..." onkeyup="filterPayroll()">
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPayrollFilters()" title="Скинути фільтри">
+                                <i class="bi bi-x-circle"></i>
+                                </button>
+                        </td>
+                    </tr>
+                </thead>
+                <tbody id="payrollTableBody">
+                    <!-- Дані будуть завантажені через JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="stats-card">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Статистика</h5>
+                </div>
+                <div class="card-body" id="payrollStats">
+                    <!-- Статистика буде завантажена через JavaScript -->
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">По вчителях</h5>
+                </div>
+                <div class="card-body" id="payrollByTeachers">
+                    <!-- Дані по вчителях будуть завантажені через JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для додавання нової зарплати -->
+<div class="modal fade" id="addPayrollModal" tabindex="-1" aria-labelledby="addPayrollModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addPayrollModalLabel">
+                    <i class="bi bi-plus-circle"></i> Додати нову зарплату
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    <strong>Важливо:</strong> Зарплата ОБОВ'ЯЗКОВО має бути прив'язана до проведеного уроку. 
+                    Оберіть урок зі списку нижче.
+                </div>
+                <form id="addPayrollForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addTeacherId" class="form-label">Вчитель *</label>
+                                <select class="form-select" id="addTeacherId" required>
+                                    <option value="">Оберіть вчителя</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addLessonEventId" class="form-label">Проведений урок *</label>
+                                <select class="form-select" id="addLessonEventId" required>
+                                    <option value="">⚠️ Оберіть проведений урок (обов'язково)</option>
+                                </select>
+                                <div class="form-text">Показуються тільки уроки без нарахованої зарплати</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addBasis" class="form-label">Основа *</label>
+                                <select class="form-select" id="addBasis" required>
+                                    <option value="MANUAL">Ручне нарахування</option>
+                                    <option value="AUTO">Автоматичне нарахування</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="addAmount" class="form-label">Сума (₴) *</label>
+                                <input type="number" class="form-control" id="addAmount" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addNote" class="form-label">Примітка</label>
+                        <textarea class="form-control" id="addNote" rows="3" placeholder="Опис або коментар до нарахування..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-success" onclick="saveNewPayroll()">
+                    <i class="bi bi-check-lg"></i> Додати зарплату
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для редагування зарплати -->
+<div class="modal fade" id="editPayrollModal" tabindex="-1" aria-labelledby="editPayrollModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editPayrollModalLabel">
+                    <i class="bi bi-pencil"></i> Редагувати зарплату
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPayrollForm">
+                    <input type="hidden" id="editPayrollId">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editTeacherId" class="form-label">Вчитель *</label>
+                                <select class="form-select" id="editTeacherId" required>
+                                    <option value="">Оберіть вчителя</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLessonEventId" class="form-label">Урок (необов'язково)</label>
+                                <select class="form-select" id="editLessonEventId">
+                                    <option value="">Без прив'язки до уроку</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editBasis" class="form-label">Основа *</label>
+                                <select class="form-select" id="editBasis" required>
+                                    <option value="MANUAL">Ручне нарахування</option>
+                                    <option value="AUTO">Автоматичне нарахування</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editAmount" class="form-label">Сума (₴) *</label>
+                                <input type="number" class="form-control" id="editAmount" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editNote" class="form-label">Примітка</label>
+                        <textarea class="form-control" id="editNote" rows="3" placeholder="Опис або коментар до нарахування..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-warning" onclick="updatePayroll()">
+                    <i class="bi bi-check-lg"></i> Зберегти зміни
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для розрахунку зарплати -->
+<div class="modal fade" id="calculatePayrollModal" tabindex="-1" aria-labelledby="calculatePayrollModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="calculatePayrollModalLabel">
+                    <i class="bi bi-calculator"></i> Розрахувати зарплату
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label for="calcDateFrom" class="form-label">Дата від</label>
+                        <input type="date" class="form-control" id="calcDateFrom">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="calcDateTo" class="form-label">Дата до</label>
+                        <input type="date" class="form-control" id="calcDateTo">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="calcTeacher" class="form-label">Вчитель</label>
+                        <select class="form-select" id="calcTeacher">
+                            <option value="">Всі вчителі</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <label for="calcClub" class="form-label">Гурток</label>
+                        <select class="form-select" id="calcClub">
+                            <option value="">Всі гуртки</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="calcBasis" class="form-label">Основа</label>
+                        <select class="form-select" id="calcBasis">
+                            <option value="">Всі основи</option>
+                            <option value="AUTO">Автоматично</option>
+                            <option value="MANUAL">Вручну</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="button" class="btn btn-primary me-2" onclick="calculateSalary()">
+                            <i class="bi bi-search"></i> Розрахувати
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="resetCalculation()">
+                            <i class="bi bi-arrow-clockwise"></i> Скинути
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Результати розрахунку -->
+                <div id="calculationResults" style="display: none;">
+                    <h6 class="mb-3">📊 Результати розрахунку:</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-primary" id="calcTotalRecords">0</h5>
+                                    <p class="card-text">Всього записів</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-success" id="calcTotalAmount">0 ₴</h5>
+                                    <p class="card-text">Загальна сума</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-info" id="calcAutoCount">0</h5>
+                                    <p class="card-text">Автоматичних</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                <div class="card-body">
+                                    <h5 class="card-title text-warning" id="calcManualCount">0</h5>
+                                    <p class="card-text">Ручних</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Таблиця деталей -->
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Вчитель</th>
+                                    <th>Гурток</th>
+                                    <th>Основа</th>
+                                    <th>Сума</th>
+                                    <th>Примітка</th>
+                                </tr>
+                            </thead>
+                            <tbody id="calculationTableBody">
+                            </tbody>
+                        </table>
+                        </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" id="exportCalculationBtn" style="display: none;" onclick="exportCalculation()">
+                    <i class="bi bi-download"></i> Експорт результатів
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрити</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Змінні для зберігання даних
+let allPayrollRecords = [];
+let allTeachers = [];
+let allClubs = [];
+
+// Завантаження всіх даних
+async function loadAllPayrollData() {
+    try {
+        showLoading(true);
+        
+        // Встановлюємо фільтр за ПОТОЧНИЙ МІСЯЦЬ (з 1-го числа до кінця місяця)
+        // ВАЖЛИВО: Використовуємо UTC дати, щоб уникнути проблем з часовими зонами
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth() + 1; // getMonth() returns 0-11, нам треба 1-12
+        
+        // Формуємо дати напряму в форматі YYYY-MM-DD без конвертації через Date об'єкт
+        const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`;
+        const lastDay = new Date(year, month, 0).getDate(); // Останній день місяця
+        const dateTo = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        
+        // Завантажуємо дані за поточний місяць
+        const [payrollResponse, teachersResponse, clubsResponse] = await Promise.all([
+            fetch(`/api/payroll?date_from=${dateFrom}&date_to=${dateTo}&limit=10000`),
+            fetch('/api/teachers'),
+            fetch('/api/clubs')
+        ]);
+        
+        if (!payrollResponse.ok || !teachersResponse.ok || !clubsResponse.ok) {
+            throw new Error('Помилка завантаження даних');
+        }
+        
+        allPayrollRecords = await payrollResponse.json();
+        allTeachers = await teachersResponse.json();
+        allClubs = await clubsResponse.json();
+        
+        // Заповнюємо фільтри
+        fillPayrollFilters();
+        
+        // Показуємо дані
+        displayPayroll(allPayrollRecords);
+        updatePayrollStats(allPayrollRecords);
+        
+        showLoading(false);
+    } catch (error) {
+        showLoading(false);
+        console.error('Помилка завантаження даних зарплат:', error);
+        showAlert('Помилка завантаження даних зарплат', 'danger');
+    }
+}
+
+// Заповнення фільтрів
+function fillPayrollFilters() {
+    // Заповнення фільтру вчителів
+    const filterTeacher = document.getElementById('filterTeacher');
+    filterTeacher.innerHTML = '<option value="">Всі вчителі</option>';
+    
+    allTeachers.forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.id;
+        option.textContent = teacher.full_name;
+        filterTeacher.appendChild(option);
+    });
+    
+    // Заповнення фільтру гуртків
+    const filterClub = document.getElementById('filterClub');
+    filterClub.innerHTML = '<option value="">Всі гуртки</option>';
+    
+    allClubs.forEach(club => {
+        const option = document.createElement('option');
+        option.value = club.id;
+        option.textContent = club.name;
+        filterClub.appendChild(option);
+    });
+}
+
+// Відображення зарплат
+function displayPayroll(payrollRecords) {
+    const tableBody = document.getElementById('payrollTableBody');
+    
+    if (payrollRecords.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-muted">
+                    <i class="bi bi-currency-dollar"></i><br>
+                    Записів про зарплату не знайдено за заданими критеріями
+                </td>
+            </tr>`;
+        return;
+    }
+    
+    let bodyHTML = '';
+    
+    payrollRecords.forEach(payroll => {
+        const teacherName = payroll.teacher_name || 'Не вказано';
+        
+        // Форматування дати (API тепер повертає lesson_date безпосередньо)
+        const lessonDate = payroll.lesson_date
+            ? new Date(payroll.lesson_date).toLocaleDateString('uk-UA')
+            : '-';
+        
+        // Назва гуртка (API тепер повертає club_name безпосередньо)
+        const clubName = payroll.club_name || '-';
+        
+        // HTML для рядка
+        bodyHTML += `
+            <tr>
+                <td>${lessonDate}</td>
+                <td><strong>${teacherName}</strong></td>
+                <td>${clubName}</td>
+                <td>
+                    ${payroll.basis === 'AUTO' 
+                        ? '<span class="badge bg-success">Автоматично</span>' 
+                        : '<span class="badge bg-warning">Вручну</span>'}
+                </td>
+                <td><strong class="text-success">${payroll.amount_decimal} ₴</strong></td>
+                <td><small>${payroll.note || '-'}</small></td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-warning"
+                                onclick="editPayroll(${payroll.id})" title="Редагувати">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                onclick="deletePayroll(${payroll.id})" title="Видалити">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+    });
+    
+    tableBody.innerHTML = bodyHTML;
+}
+
+// Фільтрування зарплат
+function filterPayroll() {
+    const dateFilter = document.getElementById('filterDate').value;
+    const teacherFilter = parseInt(document.getElementById('filterTeacher').value);
+    const clubFilter = parseInt(document.getElementById('filterClub').value);
+    const basisFilter = document.getElementById('filterBasis').value;
+    const amountFilter = parseFloat(document.getElementById('filterAmount').value);
+    const noteFilter = document.getElementById('filterNote').value.toLowerCase();
+    
+    let filteredRecords = allPayrollRecords;
+    
+    // Фільтр по даті
+    if (dateFilter) {
+        const filterDate = new Date(dateFilter);
+        filteredRecords = filteredRecords.filter(record => {
+            if (!record.lesson_date) return false;
+            const recordDate = new Date(record.lesson_date);
+            return recordDate.toDateString() === filterDate.toDateString();
+        });
+    }
+    
+    // Фільтр по вчителю
+    if (teacherFilter) {
+        filteredRecords = filteredRecords.filter(record => record.teacher_id === teacherFilter);
+    }
+    
+    // Фільтр по гуртку
+    if (clubFilter) {
+        filteredRecords = filteredRecords.filter(record => {
+            // club_name вже є в record напряму від API
+            const club = allClubs.find(c => c.name === record.club_name);
+            return club && club.id === clubFilter;
+        });
+    }
+    
+    // Фільтр по основі
+    if (basisFilter) {
+        filteredRecords = filteredRecords.filter(record => record.basis === basisFilter);
+    }
+    
+    // Фільтр по сумі (від заданої суми і вище)
+    if (!isNaN(amountFilter)) {
+        filteredRecords = filteredRecords.filter(record => parseFloat(record.amount_decimal) >= amountFilter);
+    }
+    
+    // Фільтр по примітці
+    if (noteFilter) {
+        filteredRecords = filteredRecords.filter(record => {
+            const note = (record.note || '').toLowerCase();
+            return note.includes(noteFilter);
+        });
+    }
+    
+    displayPayroll(filteredRecords);
+    updatePayrollStats(filteredRecords);
+}
+
+// Скидання фільтрів
+function resetPayrollFilters() {
+    document.getElementById('filterDate').value = '';
+    document.getElementById('filterTeacher').value = '';
+    document.getElementById('filterClub').value = '';
+    document.getElementById('filterBasis').value = '';
+    document.getElementById('filterAmount').value = '';
+    document.getElementById('filterNote').value = '';
+    
+    displayPayroll(allPayrollRecords);
+    updatePayrollStats(allPayrollRecords);
+}
+
+// Оновлення статистики
+function updatePayrollStats(records = allPayrollRecords) {
+    const total = records.length;
+    const totalAmount = records.reduce((sum, record) => sum + parseFloat(record.amount_decimal), 0);
+    const autoCount = records.filter(r => r.basis === 'AUTO').length;
+    const manualCount = records.filter(r => r.basis === 'MANUAL').length;
+    
+    document.getElementById('payrollStats').innerHTML = `
+        <p><strong>Всього виплат:</strong> ${total}</p>
+        <p><strong>Загальна сума:</strong> ${totalAmount.toFixed(2)} ₴</p>
+        <p><strong>Автоматичних:</strong> ${autoCount}</p>
+        <p><strong>Ручних:</strong> ${manualCount}</p>
+    `;
+    
+    // Статистика по вчителях
+    const teachersPayroll = {};
+    records.forEach(record => {
+        const teacher = allTeachers.find(t => t.id === record.teacher_id);
+        if (teacher) {
+            const teacherName = teacher.full_name;
+            teachersPayroll[teacherName] = (teachersPayroll[teacherName] || 0) + parseFloat(record.amount_decimal);
+        }
+    });
+    
+    let teachersHTML = '';
+    
+    // Сортуємо по сумі (від більшої до меншої)
+    const sortedTeachers = Object.entries(teachersPayroll).sort((a, b) => b[1] - a[1]);
+    
+    for (const [teacherName, amount] of sortedTeachers) {
+        teachersHTML += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>${teacherName}</span>
+                <span class="badge bg-success">${amount.toFixed(2)} ₴</span>
+            </div>
+        `;
+    }
+    
+    // Додаємо загальну суму внизу
+    if (sortedTeachers.length > 0) {
+        teachersHTML += `
+            <hr>
+            <div class="d-flex justify-content-between align-items-center">
+                <strong>Загальна сума:</strong>
+                <strong class="text-primary">${totalAmount.toFixed(2)} ₴</strong>
+            </div>
+        `;
+    }
+    
+    if (teachersHTML === '') {
+        teachersHTML = '<p class="text-muted">Немає даних для відображення</p>';
+    }
+    
+    document.getElementById('payrollByTeachers').innerHTML = teachersHTML;
+}
+
+// Відкриття модальних вікон
+function openAddPayrollModal() {
+    console.log('🚀 PAYROLL DEBUG: Відкриваю модальне вікно зарплати');
+    fillTeacherSelects();
+    fillLessonEventSelects();
+    document.getElementById('addPayrollForm').reset();
+    new bootstrap.Modal(document.getElementById('addPayrollModal')).show();
+    console.log('✅ PAYROLL DEBUG: Модальне вікно відкрито');
+}
+
+function openCalculateModal() {
+    fillCalculationSelects();
+    // Встановлюємо дати за замовчуванням (поточний місяць)
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    document.getElementById('calcDateFrom').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('calcDateTo').value = lastDay.toISOString().split('T')[0];
+    document.getElementById('calculationResults').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('calculatePayrollModal')).show();
+}
+
+// Заповнення селектів
+function fillTeacherSelects() {
+    const selects = ['addTeacherId', 'editTeacherId'];
+    selects.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        select.innerHTML = '<option value="">Оберіть вчителя</option>';
+        allTeachers.forEach(teacher => {
+            const option = document.createElement('option');
+            option.value = teacher.id;
+            option.textContent = teacher.full_name;
+            select.appendChild(option);
+        });
+        
+        // Додаємо обробник зміни вчителя для оновлення проведених уроків
+        select.addEventListener('change', function() {
+            const teacherId = this.value ? parseInt(this.value) : null;
+            console.log(`🎯 PAYROLL DEBUG: Вчитель змінився на ID=${teacherId} (${this.selectedOptions[0]?.text})`);
+            fillLessonEventSelects(teacherId);
+        });
+    });
+}
+
+function fillCalculationSelects() {
+    // Вчителі
+    const teacherSelect = document.getElementById('calcTeacher');
+    teacherSelect.innerHTML = '<option value="">Всі вчителі</option>';
+    allTeachers.forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.id;
+        option.textContent = teacher.full_name;
+        teacherSelect.appendChild(option);
+    });
+    
+    // Гуртки
+    const clubSelect = document.getElementById('calcClub');
+    clubSelect.innerHTML = '<option value="">Всі гуртки</option>';
+    allClubs.forEach(club => {
+        const option = document.createElement('option');
+        option.value = club.id;
+        option.textContent = club.name;
+        clubSelect.appendChild(option);
+    });
+}
+
+async function fillLessonEventSelects(teacherId = null) {
+    try {
+        // ЗАВАНТАЖУЄМО ПРОВЕДЕНІ УРОКИ БЕЗ НАРАХОВАНОЇ ЗАРПЛАТИ
+        let url = '/api/conducted_lessons?only_uncalculated=true&limit=100';
+        if (teacherId) {
+            url += `&teacher_id=${teacherId}`;
+        }
+        
+        console.log(`🔍 PAYROLL DEBUG: Завантажую уроки для teacherId=${teacherId}, URL=${url}`);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            console.error(`❌ PAYROLL ERROR: HTTP ${response.status} for ${url}`);
+            return;
+        }
+        const conductedLessons = await response.json();
+        
+        console.log(`📚 PAYROLL DEBUG: Отримано ${conductedLessons.length} уроків:`, conductedLessons);
+        const selects = ['addLessonEventId', 'editLessonEventId'];
+        
+        selects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (teacherId) {
+                select.innerHTML = '<option value="">⚠️ Оберіть проведений урок (обов\'язково)</option>';
+            } else {
+                select.innerHTML = '<option value="">Спочатку оберіть вчителя</option>';
+            }
+            
+            if (!teacherId) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Немає доступних проведених уроків';
+                option.disabled = true;
+                select.appendChild(option);
+                return;
+            }
+            
+            // Сортуємо по даті (новіші зверху)
+            conductedLessons.sort((a, b) => new Date(b.lesson_date) - new Date(a.lesson_date));
+            
+            conductedLessons.forEach(lesson => {
+                const lessonDate = new Date(lesson.lesson_date).toLocaleDateString('uk-UA', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                const option = document.createElement('option');
+                option.value = lesson.lesson_event_id; // Зберігаємо lesson_event_id для сумісності
+                option.setAttribute('data-conducted-lesson-id', lesson.id); // Додаткова інформація
+                option.textContent = `${lesson.club_name} - ${lessonDate} (${lesson.present_students}/${lesson.total_students} учнів)`;
+                select.appendChild(option);
+                
+                console.log(`➕ PAYROLL DEBUG: Додав урок в селект ${selectId}: ${option.textContent}`);
+            });
+            
+            if (conductedLessons.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Немає доступних проведених уроків';
+                option.disabled = true;
+                select.appendChild(option);
+            }
+        });
+    } catch (error) {
+        console.error('Помилка завантаження проведених уроків:', error);
+    }
+}
+
+// Редагування зарплати
+function editPayroll(id) {
+    const payroll = allPayrollRecords.find(p => p.id === id);
+    if (!payroll) {
+        showAlert('Запис не знайдено', 'danger');
+        return;
+    }
+    
+    fillTeacherSelects();
+    fillLessonEventSelects();
+    
+    document.getElementById('editPayrollId').value = payroll.id;
+    document.getElementById('editTeacherId').value = payroll.teacher_id;
+    document.getElementById('editLessonEventId').value = payroll.lesson_event_id || '';
+    document.getElementById('editBasis').value = payroll.basis;
+    document.getElementById('editAmount').value = payroll.amount_decimal;
+    document.getElementById('editNote').value = payroll.note || '';
+    
+    new bootstrap.Modal(document.getElementById('editPayrollModal')).show();
+}
+
+// Функції допоміжні
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+function showLoading(show = true) {
+    let spinner = document.getElementById('loadingSpinner');
+    if (!spinner && show) {
+        spinner = document.createElement('div');
+        spinner.id = 'loadingSpinner';
+        spinner.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Завантаження...</span></div>';
+        spinner.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;';
+        document.body.appendChild(spinner);
+    }
+    if (spinner) {
+        spinner.style.display = show ? 'block' : 'none';
+    }
+}
+
+// Збереження нової зарплати
+async function saveNewPayroll() {
+    const lessonEventId = document.getElementById('addLessonEventId').value;
+    const teacherId = parseInt(document.getElementById('addTeacherId').value);
+    const basis = document.getElementById('addBasis').value;
+    const amount = parseFloat(document.getElementById('addAmount').value);
+    
+    // ОБОВ'ЯЗКОВА ПЕРЕВІРКА ПРИВ'ЯЗКИ ДО УРОКУ
+    if (!lessonEventId) {
+        showAlert('⚠️ Обов\'язково оберіть проведений урок для нарахування зарплати!', 'danger');
+        return;
+    }
+    
+    if (!teacherId || !basis || !amount) {
+        showAlert('Заповніть всі обов\'язкові поля', 'danger');
+        return;
+    }
+    
+    const formData = {
+        teacher_id: teacherId,
+        lesson_event_id: lessonEventId,
+        basis: basis,
+        amount_decimal: amount,
+        note: document.getElementById('addNote').value || null
+    };
+    
+    try {
+        const response = await fetch('/api/payroll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        if (!response.ok) throw new Error('Помилка створення зарплати');
+        
+        // Перезавантажуємо дані
+        await loadAllPayrollData();
+        bootstrap.Modal.getInstance(document.getElementById('addPayrollModal')).hide();
+        showAlert('Зарплату успішно додано', 'success');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// Оновлення зарплати
+async function updatePayroll() {
+    const payrollId = parseInt(document.getElementById('editPayrollId').value);
+    const formData = {
+        teacher_id: parseInt(document.getElementById('editTeacherId').value),
+        basis: document.getElementById('editBasis').value,
+        amount_decimal: parseFloat(document.getElementById('editAmount').value),
+        note: document.getElementById('editNote').value || null
+    };
+    
+    if (!formData.teacher_id || !formData.basis || !formData.amount_decimal) {
+        showAlert('Заповніть всі обов\'язкові поля', 'danger');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/payroll/${payrollId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        if (!response.ok) throw new Error('Помилка оновлення зарплати');
+        
+        // Перезавантажуємо дані
+        await loadAllPayrollData();
+        bootstrap.Modal.getInstance(document.getElementById('editPayrollModal')).hide();
+        showAlert('Зарплату успішно оновлено', 'success');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// Видалення зарплати
+async function deletePayroll(id) {
+    const payroll = allPayrollRecords.find(p => p.id === id);
+    if (!payroll) {
+        showAlert('Запис про зарплату не знайдено', 'danger');
+        return;
+    }
+    
+    const teacher = allTeachers.find(t => t.id === payroll.teacher_id);
+    const teacherName = teacher ? teacher.full_name : 'Невідомий вчитель';
+    const amount = payroll.amount_decimal;
+    
+    if (!confirm(`Ви впевнені що хочете видалити запис про зарплату?\n\nВчитель: ${teacherName}\nСума: ${amount} ₴\n\nЦю дію неможливо скасувати!`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/payroll/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Помилка видалення зарплати');
+        }
+        
+        // Оновлюємо дані
+        await loadAllPayrollData();
+        showAlert(`Зарплату для ${teacherName} (${amount} ₴) успішно видалено`, 'success');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// Розрахунок зарплати (з окремим API запитом)
+async function calculateSalary() {
+    const dateFrom = document.getElementById('calcDateFrom').value;
+    const dateTo = document.getElementById('calcDateTo').value;
+    const teacherId = parseInt(document.getElementById('calcTeacher').value);
+    const clubId = parseInt(document.getElementById('calcClub').value);
+    const basis = document.getElementById('calcBasis').value;
+    
+    try {
+        showLoading(true);
+        
+        // Будуємо URL з параметрами фільтрації
+        let url = '/api/payroll?limit=10000';
+        if (dateFrom) url += `&date_from=${dateFrom}`;
+        if (dateTo) url += `&date_to=${dateTo}`;
+        if (teacherId) url += `&teacher_id=${teacherId}`;
+        if (basis) url += `&basis=${basis}`;
+        
+        // Робимо окремий запит до API з фільтрами
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Помилка завантаження даних для розрахунку');
+        
+        let filteredRecords = await response.json();
+        
+        // Додатковий фільтр по гуртку (клієнтська сторона, бо API не підтримує)
+        if (clubId) {
+            filteredRecords = filteredRecords.filter(r => {
+                const club = allClubs.find(c => c.name === r.club_name);
+                return club && club.id === clubId;
+            });
+        }
+        
+        displayCalculationResults(filteredRecords);
+        window.calculationData = filteredRecords;
+        
+        showLoading(false);
+    } catch (error) {
+        showLoading(false);
+        console.error('Помилка розрахунку зарплати:', error);
+        showAlert('Помилка розрахунку зарплати: ' + error.message, 'danger');
+    }
+}
+
+// Відображення результатів розрахунку
+function displayCalculationResults(records) {
+    const total = records.length;
+    const totalAmount = records.reduce((sum, r) => sum + parseFloat(r.amount_decimal), 0);
+    const autoCount = records.filter(r => r.basis === 'AUTO').length;
+    const manualCount = records.filter(r => r.basis === 'MANUAL').length;
+    
+    document.getElementById('calcTotalRecords').textContent = total;
+    document.getElementById('calcTotalAmount').textContent = `${totalAmount.toFixed(2)} ₴`;
+    document.getElementById('calcAutoCount').textContent = autoCount;
+    document.getElementById('calcManualCount').textContent = manualCount;
+    
+    // Заповнюємо таблицю
+    const tableBody = document.getElementById('calculationTableBody');
+    let bodyHTML = '';
+    
+    records.forEach(record => {
+        const teacher = allTeachers.find(t => t.id === record.teacher_id);
+        const lessonDate = record.lesson_date 
+            ? new Date(record.lesson_date).toLocaleDateString('uk-UA') : '-';
+        const club = record.club_name 
+            ? allClubs.find(c => c.name === record.club_name) : null;
+        
+        bodyHTML += `
+            <tr>
+                <td>${lessonDate}</td>
+                <td>${teacher ? teacher.full_name : 'N/A'}</td>
+                <td>${club ? club.name : '-'}</td>
+                <td>${record.basis === 'AUTO' ? '<span class="badge bg-success">Автоматично</span>' : '<span class="badge bg-warning">Вручну</span>'}</td>
+                <td><strong>${record.amount_decimal} ₴</strong></td>
+                <td>${record.note || '-'}</td>
+            </tr>
+        `;
+    });
+    
+    if (bodyHTML === '') {
+        bodyHTML = '<tr><td colspan="6" class="text-center text-muted">Немає даних за заданими критеріями</td></tr>';
+    }
+    
+    tableBody.innerHTML = bodyHTML;
+    document.getElementById('calculationResults').style.display = 'block';
+    document.getElementById('exportCalculationBtn').style.display = total > 0 ? 'inline-block' : 'none';
+}
+
+// Скидання розрахунку
+function resetCalculation() {
+    document.getElementById('calcDateFrom').value = '';
+    document.getElementById('calcDateTo').value = '';
+    document.getElementById('calcTeacher').value = '';
+    document.getElementById('calcClub').value = '';
+    document.getElementById('calcBasis').value = '';
+    document.getElementById('calculationResults').style.display = 'none';
+    window.calculationData = [];
+}
+
+// Експорт функції
+function exportCurrentData() {
+    const currentRecords = getCurrentlyDisplayedRecords();
+    exportToExcel(currentRecords, 'payroll_current_data');
+}
+
+function exportCalculation() {
+    if (window.calculationData && window.calculationData.length > 0) {
+        exportToExcel(window.calculationData, 'payroll_calculation_results');
+    } else {
+        showAlert('Немає даних для експорту', 'warning');
+    }
+}
+
+function getCurrentlyDisplayedRecords() {
+    // Застосовуємо ті самі фільтри що і в filterPayroll()
+    const dateFilter = document.getElementById('filterDate').value;
+    const teacherFilter = parseInt(document.getElementById('filterTeacher').value);
+    const clubFilter = parseInt(document.getElementById('filterClub').value);
+    const basisFilter = document.getElementById('filterBasis').value;
+    const amountFilter = parseFloat(document.getElementById('filterAmount').value);
+    const noteFilter = document.getElementById('filterNote').value.toLowerCase();
+    
+    let filtered = allPayrollRecords;
+    
+    if (dateFilter) {
+        const filterDate = new Date(dateFilter);
+        filtered = filtered.filter(r => {
+            if (!r.lesson_date) return false;
+            return new Date(r.lesson_date).toDateString() === filterDate.toDateString();
+        });
+    }
+    if (teacherFilter) filtered = filtered.filter(r => r.teacher_id === teacherFilter);
+    if (clubFilter) {
+        filtered = filtered.filter(r => {
+            const club = allClubs.find(c => c.name === r.club_name);
+            return club && club.id === clubFilter;
+        });
+    }
+    if (basisFilter) filtered = filtered.filter(r => r.basis === basisFilter);
+    if (!isNaN(amountFilter)) filtered = filtered.filter(r => parseFloat(r.amount_decimal) >= amountFilter);
+    if (noteFilter) filtered = filtered.filter(r => (r.note || '').toLowerCase().includes(noteFilter));
+    
+    return filtered;
+}
+
+function exportToExcel(records, filename) {
+    if (records.length === 0) {
+        showAlert('Немає даних для експорту', 'warning');
+        return;
+    }
+    
+    const exportData = records.map(record => {
+        const teacher = allTeachers.find(t => t.id === record.teacher_id);
+        const club = record.club_name 
+            ? allClubs.find(c => c.name === record.club_name) : null;
+        
+        return {
+            'Дата': record.lesson_date 
+                ? new Date(record.lesson_date).toLocaleDateString('uk-UA') : '-',
+            'Вчитель': teacher ? teacher.full_name : 'N/A',
+            'Гурток': club ? club.name : record.club_name || '-',
+            'Основа': record.basis === 'AUTO' ? 'Автоматично' : 'Вручну',
+            'Сума (₴)': parseFloat(record.amount_decimal),
+            'Примітка': record.note || '-'
+        };
+    });
+    
+    // Створюємо Excel файл за допомогою XLSX.js
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Зарплата');
+    
+    // Експортуємо як .xlsx файл
+    XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    showAlert(`Експортовано ${exportData.length} записів у Excel файл`, 'success');
+}
+
+function convertToCSV(data) {
+    if (data.length === 0) return '';
+    const headers = Object.keys(data[0]);
+    const csvRows = [headers.join(',')];
+    
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header];
+            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+        });
+        csvRows.push(values.join(','));
+    });
+    
+    return csvRows.join('\n');
+}
+
+// Завантаження даних при завантаженні сторінки
+document.addEventListener('DOMContentLoaded', () => {
+    loadAllPayrollData();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,1837 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* Стилі проведених уроків */
+#conductedLessonsTable {
+    margin-top: 20px;
+}
+
+/* Специфічні розміри для колонок */
+#conductedLessonsTable th:nth-child(1), #conductedLessonsTable td:nth-child(1) { min-width: 120px; } /* Дата */
+#conductedLessonsTable th:nth-child(2), #conductedLessonsTable td:nth-child(2) { min-width: 150px; } /* Вчитель */
+#conductedLessonsTable th:nth-child(3), #conductedLessonsTable td:nth-child(3) { min-width: 120px; } /* Гурток */
+#conductedLessonsTable th:nth-child(4), #conductedLessonsTable td:nth-child(4) { min-width: 100px; } /* Присутність */
+#conductedLessonsTable th:nth-child(5), #conductedLessonsTable td:nth-child(5) { min-width: 80px; }  /* Відвідуваність */
+#conductedLessonsTable th:nth-child(6), #conductedLessonsTable td:nth-child(6) { min-width: 100px; } /* Зарплата */
+#conductedLessonsTable th:nth-child(7), #conductedLessonsTable td:nth-child(7) { min-width: 200px; } /* Примітки */
+#conductedLessonsTable th:nth-child(8), #conductedLessonsTable td:nth-child(8) { min-width: 100px; } /* Дії */
+
+/* Заголовки без яскравих кольорів */
+#conductedLessonsTable thead th {
+    white-space: nowrap;
+    padding: 12px 8px;
+}
+
+/* Фільтри компактні */
+#conductedLessonsTable .filter-row td {
+    padding: 8px 6px;
+}
+
+#conductedLessonsTable .filter-input,
+#conductedLessonsTable .filter-select {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    min-width: 90px;
+}
+
+/* Прогрес-бар відвідуваності */
+.attendance-progress {
+    width: 100%;
+    height: 20px;
+}
+
+/* Статистика карточки */
+.stats-card {
+    margin-top: 20px;
+}
+
+/* Бейджі статусу */
+.salary-status {
+    font-size: 0.8rem;
+}
+
+/* Стилі для нової системи редагування відвідуваності */
+.students-attendance-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.student-attendance-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    background-color: #f8f9fa;
+}
+
+.student-attendance-item:hover {
+    background-color: #e9ecef;
+}
+
+.student-info {
+    flex-grow: 1;
+    font-weight: 500;
+}
+
+.attendance-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.attendance-status-btn {
+    min-width: 80px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.attendance-status-btn.present {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.attendance-status-btn.absent {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.remove-student-btn {
+    color: #dc3545;
+    border-color: #dc3545;
+    font-size: 0.875rem;
+}
+
+.remove-student-btn:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+.attendance-stats-badge {
+    background-color: #0d6efd;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+}
+</style>
+
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>📚 Проведені уроки</h2>
+    <div class="btn-group">
+        <button type="button" class="btn btn-success" onclick="openCreateLessonModal()">
+            <i class="bi bi-plus-circle"></i> Додати урок
+        </button>
+        <button type="button" class="btn btn-outline-primary" onclick="exportLessonsData()">
+            <i class="bi bi-download"></i> Експорт
+        </button>
+        <button type="button" class="btn btn-warning" onclick="showUncalculatedLessons()">
+            <i class="bi bi-calculator"></i> Без зарплати
+        </button>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="conductedLessonsTable">
+                <thead>
+                    <tr>
+                        <th colspan="2">Дата уроку</th>
+                        <th>Вчитель</th>
+                        <th>Гурток</th>
+                        <th>Присутність</th>
+                        <th>Відвідуваність</th>
+                        <th>Зарплата</th>
+                        <th>Примітки</th>
+                        <th>Дії</th>
+                    </tr>
+                    <!-- Рядок фільтрів -->
+                    <tr class="filter-row">
+                        <td>
+                            <input type="date" class="form-control form-control-sm filter-input" id="filterDateFrom" 
+                                   placeholder="Дата з" onchange="handleDateRangeChange()">
+                        </td>
+                        <td>
+                            <input type="date" class="form-control form-control-sm filter-input" id="filterDateTo" 
+                                   placeholder="Дата по" onchange="handleDateRangeChange()">
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterTeacher" onchange="filterLessons()">
+                                <option value="">Всі вчителі</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterClub" onchange="filterLessons()">
+                                <option value="">Всі гуртки</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm filter-input" id="filterMinPresent" 
+                                   placeholder="Мін. присутніх..." min="0" onkeyup="filterLessons()">
+                        </td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm filter-input" id="filterMinRate" 
+                                   placeholder="Мін. %..." min="0" max="100" onkeyup="filterLessons()">
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm filter-select" id="filterSalaryStatus" onchange="filterLessons()">
+                                <option value="">Всі статуси</option>
+                                <option value="calculated">Нарахована</option>
+                                <option value="not_calculated">Не нарахована</option>
+                                <option value="valid">Валідна для зарплати</option>
+                                <option value="invalid">Не валідна</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control form-control-sm filter-input" id="filterNotes" 
+                                   placeholder="Пошук в примітках..." onkeyup="filterLessons()">
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetLessonFilters()" title="Скинути фільтри">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </td>
+                    </tr>
+                </thead>
+                <tbody id="lessonsTableBody">
+                    <!-- Дані будуть завантажені через JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="stats-card">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Загальна статистика</h5>
+                </div>
+                <div class="card-body" id="lessonsStats">
+                    <!-- Статистика буде завантажена через JavaScript -->
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">По вчителях</h5>
+                </div>
+                <div class="card-body" id="teachersStats">
+                    <!-- Статистика по вчителях буде завантажена через JavaScript -->
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">По гуртках</h5>
+                </div>
+                <div class="card-body" id="clubsStats">
+                    <!-- Статистика по гуртках буде завантажена через JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для створення уроку -->
+<div class="modal fade" id="createLessonModal" tabindex="-1" aria-labelledby="createLessonModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createLessonModalLabel">
+                    <i class="bi bi-plus-circle"></i> Додати проведений урок
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    Ця форма дозволяє вручну додати проведений урок, наприклад, якщо урок відбувся, але не було автоматичної відмітки через Telegram бота.
+                </div>
+                
+                <!-- Форма вибору типу створення -->
+                <div class="mb-4">
+                    <div class="btn-group w-100" role="group" aria-label="Тип створення">
+                        <input type="radio" class="btn-check" name="createType" id="createTypeEvent" value="event" checked>
+                        <label class="btn btn-outline-primary" for="createTypeEvent">З готового уроку</label>
+                        
+                        <input type="radio" class="btn-check" name="createType" id="createTypeManual" value="manual">
+                        <label class="btn btn-outline-success" for="createTypeManual">Новий вручну</label>
+                    </div>
+                </div>
+
+                <!-- Форма для створення з lesson_event -->
+                <div id="eventForm" class="form-section">
+                    <form id="createLessonEventForm">
+                    <div class="mb-3">
+                            <label for="createLessonEventId" class="form-label">Готовий урок (LessonEvent) *</label>
+                        <select class="form-select" id="createLessonEventId" required>
+                                <option value="">Оберіть завершений урок</option>
+                        </select>
+                            <div class="form-text">Оберіть урок з Telegram бота для якого потрібно створити запис</div>
+                    </div>
+                    <div class="mb-3">
+                            <label for="createEventNotes" class="form-label">Примітки</label>
+                            <textarea class="form-control" id="createEventNotes" rows="3" placeholder="Додаткові примітки про урок"></textarea>
+                    </div>
+                </form>
+                </div>
+
+                <!-- Форма для вручного створення -->
+                <div id="manualForm" class="form-section" style="display: none;">
+                    <form id="createManualLessonForm">
+                        <div class="row">
+                            <!-- Колонка вибору розкладу -->
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0"><i class="bi bi-calendar3"></i> Розклад та час</h6>
+                                    </div>
+                                    <div class="card-body">
+                    <div class="mb-3">
+                                            <label for="createScheduleId" class="form-label">Розклад/Гурток *</label>
+                                            <select class="form-select" id="createScheduleId" required onchange="loadScheduleStudents()">
+                                                <option value="">Оберіть розклад</option>
+                                            </select>
+                                            <div class="form-text">Виберіть розклад (вчитель + гурток + час)</div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="createLessonDate" class="form-label">Дата та час уроку *</label>
+                                            <input type="datetime-local" class="form-control" id="createLessonDate" required>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="createDuration" class="form-label">Тривалість (хвилин)</label>
+                                            <input type="number" class="form-control" id="createDuration" min="5" max="300" placeholder="60">
+                                            <div class="form-text">Залишити порожнім для автоматичного визначення</div>
+                                        </div>
+                                        
+                                        
+                                        <div class="mb-3">
+                                            <label for="createManualNotes" class="form-label">Примітки</label>
+                                            <textarea class="form-control" id="createManualNotes" rows="3" placeholder="Додаткові примітки про урок"></textarea>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="createAutoPayroll" checked>
+                                                <label class="form-check-label" for="createAutoPayroll">
+                                                    <i class="bi bi-cash-coin text-success"></i> <strong>Автоматично нарахувати зарплату</strong>
+                                                </label>
+                                                <div class="form-text">Якщо відмічено, зарплата буде автоматично нарахована вчителю за цей урок (тільки якщо є присутні студенти)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Колонка вибору студентів -->
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0"><i class="bi bi-people"></i> Присутність студентів</h6>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-success" onclick="markAllPresent()">
+                                                <i class="bi bi-check-all"></i> Всі присутні
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger" onclick="markAllAbsent()">
+                                                <i class="bi bi-x-circle"></i> Всі відсутні
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="studentsAttendanceList">
+                                            <div class="text-muted text-center py-4">
+                                                <i class="bi bi-arrow-left"></i> Спочатку оберіть розклад
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="attendanceStats" class="mt-3" style="display: none;">
+                                            <div class="alert alert-light">
+                                                <div class="row text-center">
+                                                    <div class="col-4">
+                                                        <div class="h5 mb-0 text-success" id="presentCount">0</div>
+                                                        <small>Присутні</small>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="h5 mb-0 text-danger" id="absentCount">0</div>
+                                                        <small>Відсутні</small>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="h5 mb-0 text-primary" id="totalCount">0</div>
+                                                        <small>Всього</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                    </div>
+                </form>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-success" onclick="saveNewLesson()">
+                    <i class="bi bi-check-lg"></i> Створити урок
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для перегляду деталей уроку -->
+<div class="modal fade" id="viewLessonModal" tabindex="-1" aria-labelledby="viewLessonModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewLessonModalLabel">
+                    <i class="bi bi-eye"></i> Деталі проведеного уроку
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <!-- Основна інформація -->
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Основна інформація</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless table-sm">
+                                    <tr><th width="40%">Дата уроку:</th><td id="viewLessonDate">-</td></tr>
+                                    <tr><th>Вчитель:</th><td id="viewLessonTeacher">-</td></tr>
+                                    <tr><th>Гурток:</th><td id="viewLessonClub">-</td></tr>
+                                    <tr><th>Тривалість:</th><td id="viewLessonDuration">-</td></tr>
+                                    <tr><th>Тема уроку:</th><td id="viewLessonTopic">-</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Статистика відвідуваності -->
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Відвідуваність</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <h4 class="text-primary mb-0" id="viewTotalStudents">0</h4>
+                                        <small>Всього учнів</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <h4 class="text-success mb-0" id="viewPresentStudents">0</h4>
+                                        <small>Присутніх</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <h4 class="text-danger mb-0" id="viewAbsentStudents">0</h4>
+                                        <small>Відсутніх</small>
+                                    </div>
+                                </div>
+                                <div class="progress mt-3" style="height: 25px;">
+                                    <div class="progress-bar bg-success" role="progressbar" id="viewAttendanceBar" style="width: 0%">0%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Список учнів -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-people"></i> Список учнів</h6>
+                            </div>
+                            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                                <div id="viewStudentsList">
+                                    <div class="text-center text-muted">
+                                        <div class="spinner-border spinner-border-sm me-2"></div>
+                                        Завантажуємо список учнів...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Примітки -->
+                <div class="row mt-3" id="viewNotesSection" style="display: none;">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-journal-text"></i> Примітки</h6>
+                            </div>
+                            <div class="card-body">
+                                <p id="viewLessonNotes" class="mb-0">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрити</button>
+                <button type="button" class="btn btn-warning" onclick="editLessonFromView()">
+                    <i class="bi bi-pencil"></i> Редагувати
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно для редагування уроку -->
+<div class="modal fade" id="editLessonModal" tabindex="-1" aria-labelledby="editLessonModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editLessonModalLabel">
+                    <i class="bi bi-pencil"></i> Редагувати проведений урок
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editLessonForm">
+                    <input type="hidden" id="editLessonId">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLessonDate" class="form-label">Дата уроку *</label>
+                                <input type="datetime-local" class="form-control" id="editLessonDate" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLessonDuration" class="form-label">Тривалість (хвилин) *</label>
+                                <input type="number" class="form-control" id="editLessonDuration" min="15" max="300" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Список учнів з можливістю редагування -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="bi bi-people"></i> Список учнів та їх відвідуваність
+                                </label>
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <span>Управління відвідуваністю</span>
+                                        <div id="editAttendanceStats" class="small text-muted">
+                                            Завантаження...
+                                        </div>
+                                    </div>
+                                    <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                                        <div id="editStudentsList" class="students-attendance-list">
+                                            <div class="text-center text-muted">
+                                                <div class="spinner-border spinner-border-sm me-2"></div>
+                                                Завантажуємо список учнів...
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Скриті поля для сумісності з існуючою логікою -->
+                    <input type="hidden" id="editTotalStudents">
+                    <input type="hidden" id="editPresentStudents">
+                    <input type="hidden" id="editAbsentStudents">
+                    
+                    <div class="mb-3">
+                        <label for="editLessonTopicEdit" class="form-label">Тема уроку</label>
+                        <input type="text" class="form-control" id="editLessonTopicEdit" placeholder="Тема або опис уроку">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editLessonNotesEdit" class="form-label">Примітки</label>
+                        <textarea class="form-control" id="editLessonNotesEdit" rows="3" placeholder="Додаткові примітки про урок"></textarea>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="editSalaryCalculated">
+                        <label class="form-check-label" for="editSalaryCalculated">
+                            Зарплата нарахована
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-warning" onclick="saveEditedLesson()">
+                    <i class="bi bi-check-lg"></i> Зберегти зміни
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Змінні для зберігання даних
+let allConductedLessons = [];
+let allTeachers = [];
+let allClubs = [];
+
+// Завантаження всіх даних
+async function loadConductedLessons() {
+    try {
+        showLoading(true);
+        
+        // Встановлюємо фільтр за останній тиждень за замовчуванням
+        const today = new Date();
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        
+        const dateFrom = weekAgo.toISOString().split('T')[0];
+        const dateTo = today.toISOString().split('T')[0];
+        
+        // Встановлюємо значення в поля фільтрів
+        document.getElementById('filterDateFrom').value = dateFrom;
+        document.getElementById('filterDateTo').value = dateTo;
+        
+        // Завантажуємо дані паралельно з фільтром за останній тиждень
+        const [lessonsResponse, teachersResponse, clubsResponse] = await Promise.all([
+            fetch(`/api/conducted_lessons?start_date=${dateFrom}&end_date=${dateTo}`),
+            fetch('/api/teachers'),
+            fetch('/api/clubs')
+        ]);
+        
+        if (!lessonsResponse.ok || !teachersResponse.ok || !clubsResponse.ok) {
+            throw new Error('Помилка завантаження даних');
+        }
+        
+        allConductedLessons = await lessonsResponse.json();
+        allTeachers = await teachersResponse.json();
+        allClubs = await clubsResponse.json();
+        
+        // Заповнюємо фільтри
+        fillLessonFilters();
+        
+        // Показуємо дані
+        displayLessons(allConductedLessons);
+        updateLessonsStats(allConductedLessons);
+        
+        showLoading(false);
+    } catch (error) {
+        showLoading(false);
+        console.error('Помилка завантаження проведених уроків:', error);
+        showAlert('Помилка завантаження проведених уроків', 'danger');
+    }
+}
+
+// Обробка зміни діапазону дат - робить новий API запит
+async function handleDateRangeChange() {
+    const dateFrom = document.getElementById('filterDateFrom').value;
+    const dateTo = document.getElementById('filterDateTo').value;
+    
+    if (!dateFrom || !dateTo) {
+        console.log('⚠️ Потрібно заповнити обидві дати');
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        
+        console.log(`🔄 Завантаження даних за період: ${dateFrom} - ${dateTo}`);
+        
+        // Робимо новий API запит з новим діапазоном
+        const lessonsResponse = await fetch(`/api/conducted_lessons?start_date=${dateFrom}&end_date=${dateTo}`);
+        
+        if (!lessonsResponse.ok) {
+            throw new Error('Помилка завантаження даних');
+        }
+        
+        allConductedLessons = await lessonsResponse.json();
+        console.log(`✅ Завантажено ${allConductedLessons.length} уроків`);
+        
+        // Застосовуємо інші фільтри та показуємо дані
+        filterLessons();
+        
+        showLoading(false);
+    } catch (error) {
+        showLoading(false);
+        console.error('Помилка завантаження даних:', error);
+        showAlert('Помилка завантаження даних: ' + error.message, 'danger');
+    }
+}
+
+// Заповнення фільтрів
+function fillLessonFilters() {
+    // Заповнення фільтру вчителів
+    const filterTeacher = document.getElementById('filterTeacher');
+    filterTeacher.innerHTML = '<option value="">Всі вчителі</option>';
+    
+    allTeachers.forEach(teacher => {
+        const option = document.createElement('option');
+        option.value = teacher.id;
+        option.textContent = teacher.full_name;
+        filterTeacher.appendChild(option);
+    });
+    
+    // Заповнення фільтру гуртків
+    const filterClub = document.getElementById('filterClub');
+    filterClub.innerHTML = '<option value="">Всі гуртки</option>';
+    
+    allClubs.forEach(club => {
+        const option = document.createElement('option');
+        option.value = club.id;
+        option.textContent = club.name;
+        filterClub.appendChild(option);
+    });
+}
+
+// Відображення уроків
+function displayLessons(lessons) {
+    const tableBody = document.getElementById('lessonsTableBody');
+    
+    if (lessons.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="9" class="text-center text-muted">
+                    <i class="bi bi-book"></i><br>
+                    Проведених уроків не знайдено за заданими критеріями
+                </td>
+            </tr>`;
+        return;
+    }
+    
+    let bodyHTML = '';
+    
+    lessons.forEach(lesson => {
+        // Форматування дати
+        const lessonDate = new Date(lesson.lesson_date).toLocaleDateString('uk-UA', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        // Статистика присутності
+        const attendanceText = `${lesson.present_students}/${lesson.total_students}`;
+        const attendanceRate = lesson.attendance_rate;
+        
+        // Прогрес-бар відвідуваності
+        const progressClass = attendanceRate >= 80 ? 'bg-success' : 
+                             attendanceRate >= 60 ? 'bg-warning' : 'bg-danger';
+        const progressBar = `
+            <div class="progress attendance-progress">
+                <div class="progress-bar ${progressClass}" role="progressbar" 
+                     style="width: ${attendanceRate}%" 
+                     aria-valuenow="${attendanceRate}" aria-valuemin="0" aria-valuemax="100">
+                    ${attendanceRate.toFixed(1)}%
+                </div>
+            </div>
+        `;
+        
+        // Статус зарплати
+        let salaryStatus = '';
+        if (lesson.is_salary_calculated) {
+            salaryStatus = '<span class="badge bg-success salary-status">Нарахована</span>';
+        } else if (lesson.is_valid_for_salary) {
+            salaryStatus = '<span class="badge bg-warning salary-status">Очікує</span>';
+        } else {
+            salaryStatus = '<span class="badge bg-secondary salary-status">Не валідна</span>';
+        }
+        
+        // HTML для рядка
+        bodyHTML += `
+            <tr>
+                <td colspan="2"><small>${lessonDate}</small></td>
+                <td><strong>${lesson.teacher_name}</strong></td>
+                <td>${lesson.club_name}</td>
+                <td>
+                    <strong>${attendanceText}</strong><br>
+                    <small class="text-muted">${lesson.total_students} записаних</small>
+                </td>
+                <td>${progressBar}</td>
+                <td>${salaryStatus}</td>
+                <td><small>${lesson.notes || '-'}</small></td>
+                <td>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="viewLesson(${lesson.id})" title="Переглянути">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="editLesson(${lesson.id})" title="Редагувати">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        ${!lesson.is_salary_calculated && lesson.is_valid_for_salary ? 
+                            `<button type="button" class="btn btn-sm btn-outline-success" onclick="markSalaryCalculated(${lesson.id})" title="Позначити зарплату">
+                                <i class="bi bi-check"></i>
+                            </button>` : ''}
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteLesson(${lesson.id})" title="Видалити урок">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+    });
+    
+    tableBody.innerHTML = bodyHTML;
+}
+
+// Фільтрування уроків
+function filterLessons() {
+    const teacherFilter = parseInt(document.getElementById('filterTeacher').value);
+    const clubFilter = parseInt(document.getElementById('filterClub').value);
+    const minPresentFilter = parseInt(document.getElementById('filterMinPresent').value);
+    const minRateFilter = parseFloat(document.getElementById('filterMinRate').value);
+    const salaryStatusFilter = document.getElementById('filterSalaryStatus').value;
+    const notesFilter = document.getElementById('filterNotes').value.toLowerCase();
+    
+    let filteredLessons = allConductedLessons;
+    
+    // Фільтр по даті тепер через handleDateRangeChange() - не потрібен тут
+    
+    // Фільтр по вчителю
+    if (teacherFilter) {
+        filteredLessons = filteredLessons.filter(lesson => lesson.teacher_id === teacherFilter);
+    }
+    
+    // Фільтр по гуртку
+    if (clubFilter) {
+        filteredLessons = filteredLessons.filter(lesson => lesson.club_id === clubFilter);
+    }
+    
+    // Фільтр по мінімальній кількості присутніх
+    if (!isNaN(minPresentFilter)) {
+        filteredLessons = filteredLessons.filter(lesson => lesson.present_students >= minPresentFilter);
+    }
+    
+    // Фільтр по мінімальному відсотку відвідуваності
+    if (!isNaN(minRateFilter)) {
+        filteredLessons = filteredLessons.filter(lesson => lesson.attendance_rate >= minRateFilter);
+    }
+    
+    // Фільтр по статусу зарплати
+    if (salaryStatusFilter) {
+        filteredLessons = filteredLessons.filter(lesson => {
+            switch (salaryStatusFilter) {
+                case 'calculated':
+                    return lesson.is_salary_calculated;
+                case 'not_calculated':
+                    return !lesson.is_salary_calculated;
+                case 'valid':
+                    return lesson.is_valid_for_salary;
+                case 'invalid':
+                    return !lesson.is_valid_for_salary;
+                default:
+                    return true;
+            }
+        });
+    }
+    
+    // Фільтр по примітках
+    if (notesFilter) {
+        filteredLessons = filteredLessons.filter(lesson => {
+            const notes = (lesson.notes || '').toLowerCase();
+            const topic = (lesson.lesson_topic || '').toLowerCase();
+            return notes.includes(notesFilter) || topic.includes(notesFilter);
+        });
+    }
+    
+    displayLessons(filteredLessons);
+    updateLessonsStats(filteredLessons);
+}
+
+// Скидання фільтрів
+function resetLessonFilters() {
+    document.getElementById('filterDate').value = '';
+    document.getElementById('filterTeacher').value = '';
+    document.getElementById('filterClub').value = '';
+    document.getElementById('filterMinPresent').value = '';
+    document.getElementById('filterMinRate').value = '';
+    document.getElementById('filterSalaryStatus').value = '';
+    document.getElementById('filterNotes').value = '';
+    
+    displayLessons(allConductedLessons);
+    updateLessonsStats(allConductedLessons);
+}
+
+// Оновлення статистики
+function updateLessonsStats(lessons = allConductedLessons) {
+    const total = lessons.length;
+    const totalStudents = lessons.reduce((sum, lesson) => sum + lesson.total_students, 0);
+    const presentStudents = lessons.reduce((sum, lesson) => sum + lesson.present_students, 0);
+    const absentStudents = lessons.reduce((sum, lesson) => sum + lesson.absent_students, 0);
+    const calculatedSalary = lessons.filter(l => l.is_salary_calculated).length;
+    const validForSalary = lessons.filter(l => l.is_valid_for_salary).length;
+    
+    const avgAttendance = totalStudents > 0 ? ((presentStudents / totalStudents) * 100).toFixed(1) : 0;
+    
+    // Загальна статистика
+    document.getElementById('lessonsStats').innerHTML = `
+        <p><strong>Всього уроків:</strong> ${total}</p>
+        <p><strong>Середня відвідуваність:</strong> ${avgAttendance}%</p>
+        <p><strong>Зарплата нарахована:</strong> ${calculatedSalary}/${validForSalary}</p>
+        <p><strong>Всього присутніх:</strong> ${presentStudents}</p>
+    `;
+    
+    // Статистика по вчителях
+    const teachersStats = {};
+    lessons.forEach(lesson => {
+        if (!teachersStats[lesson.teacher_name]) {
+            teachersStats[lesson.teacher_name] = {
+                lessons: 0,
+                present: 0,
+                total: 0
+            };
+        }
+        teachersStats[lesson.teacher_name].lessons++;
+        teachersStats[lesson.teacher_name].present += lesson.present_students;
+        teachersStats[lesson.teacher_name].total += lesson.total_students;
+    });
+    
+    let teachersHTML = '';
+    for (const [teacherName, stats] of Object.entries(teachersStats)) {
+        const rate = stats.total > 0 ? ((stats.present / stats.total) * 100).toFixed(1) : 0;
+        teachersHTML += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <strong>${teacherName}</strong><br>
+                    <small>${stats.lessons} уроків</small>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-primary">${rate}%</span><br>
+                    <small>${stats.present}/${stats.total}</small>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (teachersHTML === '') {
+        teachersHTML = '<p class="text-muted">Немає даних для відображення</p>';
+    }
+    
+    document.getElementById('teachersStats').innerHTML = teachersHTML;
+    
+    // Статистика по гуртках
+    const clubsStats = {};
+    lessons.forEach(lesson => {
+        if (!clubsStats[lesson.club_name]) {
+            clubsStats[lesson.club_name] = {
+                lessons: 0,
+                present: 0,
+                total: 0
+            };
+        }
+        clubsStats[lesson.club_name].lessons++;
+        clubsStats[lesson.club_name].present += lesson.present_students;
+        clubsStats[lesson.club_name].total += lesson.total_students;
+    });
+    
+    let clubsHTML = '';
+    for (const [clubName, stats] of Object.entries(clubsStats)) {
+        const rate = stats.total > 0 ? ((stats.present / stats.total) * 100).toFixed(1) : 0;
+        clubsHTML += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <strong>${clubName}</strong><br>
+                    <small>${stats.lessons} уроків</small>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-info">${rate}%</span><br>
+                    <small>${stats.present}/${stats.total}</small>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (clubsHTML === '') {
+        clubsHTML = '<p class="text-muted">Немає даних для відображення</p>';
+    }
+    
+    document.getElementById('clubsStats').innerHTML = clubsHTML;
+}
+
+// Змінні для зберігання даних
+let availableSchedules = [];
+let scheduleStudents = [];
+
+// Відкриття модального вікна для створення уроку
+async function openCreateLessonModal() {
+    try {
+        // Очищуємо форми
+        resetCreateForms();
+        
+        // Завантажуємо доступні розклади для вручного створення
+        await loadAvailableSchedules();
+        
+        // Завантажуємо завершені lesson events для створення з готового
+        await loadCompletedLessonEvents();
+        
+        // Встановлюємо сьогоднішню дату за замовчуванням
+        const now = new Date();
+        const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        document.getElementById('createLessonDate').value = localDateTime;
+        
+        // Показуємо модальне вікно
+    new bootstrap.Modal(document.getElementById('createLessonModal')).show();
+        
+    } catch (error) {
+        console.error('Error opening create lesson modal:', error);
+        showAlert('Помилка завантаження даних для створення уроку', 'danger');
+    }
+}
+
+// Скидання форм створення
+function resetCreateForms() {
+    // Скидуємо radio buttons
+    document.getElementById('createTypeEvent').checked = true;
+    document.getElementById('createTypeManual').checked = false;
+    
+    // Показуємо форму з lesson event, приховуємо вручну
+    document.getElementById('eventForm').style.display = 'block';
+    document.getElementById('manualForm').style.display = 'none';
+    
+    // Очищуємо поля
+    document.getElementById('createLessonEventForm').reset();
+    document.getElementById('createManualLessonForm').reset();
+    
+    // Встановлюємо чекбокс автоматичного нарахування зарплати за замовчуванням
+    document.getElementById('createAutoPayroll').checked = true;
+    
+    // Очищуємо список студентів
+    document.getElementById('studentsAttendanceList').innerHTML = '<div class="text-muted text-center py-4"><i class="bi bi-arrow-left"></i> Спочатку оберіть розклад</div>';
+    document.getElementById('attendanceStats').style.display = 'none';
+}
+
+// Показати уроки без зарплати
+function showUncalculatedLessons() {
+    document.getElementById('filterSalaryStatus').value = 'not_calculated';
+    filterLessons();
+    showAlert('Показано тільки уроки без нарахованої зарплати', 'info');
+}
+
+// Перегляд деталей уроку
+async function viewLesson(id) {
+    const lesson = allConductedLessons.find(l => l.id === id);
+    if (!lesson) {
+        showAlert('Урок не знайдено', 'danger');
+        return;
+    }
+    
+    try {
+        // Заповнення основної інформації
+        document.getElementById('viewLessonDate').textContent = new Date(lesson.lesson_date).toLocaleString('uk-UA');
+        document.getElementById('viewLessonTeacher').textContent = lesson.teacher_name || 'Невідомо';
+        document.getElementById('viewLessonClub').textContent = lesson.club_name || 'Невідомо';
+        document.getElementById('viewLessonDuration').textContent = lesson.lesson_duration_minutes ? `${lesson.lesson_duration_minutes} хв` : 'Не вказано';
+        document.getElementById('viewLessonTopic').textContent = lesson.lesson_topic || 'Не вказано';
+        
+        // Статистика відвідуваності
+        document.getElementById('viewTotalStudents').textContent = lesson.total_students || 0;
+        document.getElementById('viewPresentStudents').textContent = lesson.present_students || 0;
+        document.getElementById('viewAbsentStudents').textContent = lesson.absent_students || 0;
+        
+        // Прогрес-бар
+        const attendancePercent = lesson.total_students > 0 ? Math.round((lesson.present_students / lesson.total_students) * 100) : 0;
+        const progressBar = document.getElementById('viewAttendanceBar');
+        progressBar.style.width = `${attendancePercent}%`;
+        progressBar.textContent = `${attendancePercent}%`;
+        
+        // Примітки
+        const notesSection = document.getElementById('viewNotesSection');
+        const notesText = document.getElementById('viewLessonNotes');
+        if (lesson.notes && lesson.notes.trim()) {
+            notesText.textContent = lesson.notes;
+            notesSection.style.display = 'block';
+        } else {
+            notesSection.style.display = 'none';
+        }
+        
+        // Завантаження списку учнів
+        if (lesson.lesson_event_id) {
+            loadStudentsForLesson(lesson.lesson_event_id);
+        } else {
+            document.getElementById('viewStudentsList').innerHTML = '<div class="text-muted text-center">Список учнів недоступний</div>';
+        }
+        
+        // Зберігаємо ID для редагування
+        document.getElementById('viewLessonModal').setAttribute('data-lesson-id', id);
+        
+        // Показуємо модальне вікно
+        new bootstrap.Modal(document.getElementById('viewLessonModal')).show();
+        
+    } catch (error) {
+        console.error('Error viewing lesson:', error);
+        showAlert('Помилка завантаження деталей уроку', 'danger');
+    }
+}
+
+// Завантаження списку учнів для уроку
+async function loadStudentsForLesson(lessonEventId) {
+    try {
+        document.getElementById('viewStudentsList').innerHTML = `
+            <div class="text-center text-muted">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                Завантажуємо список учнів...
+            </div>
+        `;
+        
+        const response = await fetch(`/api/attendance?lesson_event_id=${lessonEventId}&limit=100`);
+        if (!response.ok) throw new Error('Помилка завантаження відвідуваності');
+        
+        const attendanceData = await response.json();
+        
+        if (attendanceData.length === 0) {
+            document.getElementById('viewStudentsList').innerHTML = '<div class="text-muted text-center">Немає даних про відвідуваність</div>';
+            return;
+        }
+        
+        // Групуємо учнів за статусом
+        const presentStudents = attendanceData.filter(a => a.status === 'PRESENT');
+        const absentStudents = attendanceData.filter(a => a.status === 'ABSENT');
+        
+        let studentsHtml = '';
+        
+        if (presentStudents.length > 0) {
+            studentsHtml += '<h6 class="text-success mb-2"><i class="bi bi-check-circle"></i> Присутні учні:</h6>';
+            studentsHtml += '<ul class="list-unstyled mb-3">';
+            presentStudents.forEach(student => {
+                studentsHtml += `<li class="text-success"><i class="bi bi-person-check"></i> ${student.student.first_name} ${student.student.last_name}</li>`;
+            });
+            studentsHtml += '</ul>';
+        }
+        
+        if (absentStudents.length > 0) {
+            studentsHtml += '<h6 class="text-danger mb-2"><i class="bi bi-x-circle"></i> Відсутні учні:</h6>';
+            studentsHtml += '<ul class="list-unstyled">';
+            absentStudents.forEach(student => {
+                studentsHtml += `<li class="text-danger"><i class="bi bi-person-x"></i> ${student.student.first_name} ${student.student.last_name}</li>`;
+            });
+            studentsHtml += '</ul>';
+        }
+        
+        document.getElementById('viewStudentsList').innerHTML = studentsHtml;
+        
+    } catch (error) {
+        console.error('Error loading students:', error);
+        document.getElementById('viewStudentsList').innerHTML = '<div class="text-danger text-center">Помилка завантаження списку учнів</div>';
+    }
+}
+
+// Редагування уроку
+async function editLesson(id) {
+    const lesson = allConductedLessons.find(l => l.id === id);
+    if (!lesson) {
+        showAlert('Урок не знайдено', 'danger');
+        return;
+    }
+    
+    try {
+        // Заповнення форми редагування
+        document.getElementById('editLessonId').value = lesson.id;
+        
+        // Дата і час
+        if (lesson.lesson_date) {
+            const lessonDate = new Date(lesson.lesson_date);
+            const localISOTime = new Date(lessonDate.getTime() - lessonDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            document.getElementById('editLessonDate').value = localISOTime;
+        }
+        
+        // Тривалість
+        document.getElementById('editLessonDuration').value = lesson.lesson_duration_minutes || 60;
+        
+        // Завантажуємо список учнів замість абстрактних цифр
+        await loadStudentsForLessonEdit(lesson.id);
+        
+        // Тема і примітки
+        document.getElementById('editLessonTopicEdit').value = lesson.lesson_topic || '';
+        document.getElementById('editLessonNotesEdit').value = lesson.notes || '';
+        
+        // Статус зарплати
+        document.getElementById('editSalaryCalculated').checked = lesson.is_salary_calculated || false;
+        
+        // Показуємо модальне вікно
+        new bootstrap.Modal(document.getElementById('editLessonModal')).show();
+        
+    } catch (error) {
+        console.error('Error editing lesson:', error);
+        showAlert('Помилка підготовки форми редагування', 'danger');
+    }
+}
+
+// Редагування з модального вікна перегляду
+function editLessonFromView() {
+    const modal = document.getElementById('viewLessonModal');
+    const lessonId = modal.getAttribute('data-lesson-id');
+    
+    // Закриваємо модальне вікно перегляду
+    bootstrap.Modal.getInstance(modal).hide();
+    
+    // Відкриваємо редагування
+    setTimeout(() => editLesson(parseInt(lessonId)), 300);
+}
+
+// Збереження відредагованого уроку
+async function saveEditedLesson() {
+    const lessonId = parseInt(document.getElementById('editLessonId').value);
+    
+    // Збір даних форми
+    const formData = {
+        lesson_date: document.getElementById('editLessonDate').value,
+        lesson_duration_minutes: parseInt(document.getElementById('editLessonDuration').value),
+        total_students: parseInt(document.getElementById('editTotalStudents').value),
+        present_students: parseInt(document.getElementById('editPresentStudents').value),
+        absent_students: parseInt(document.getElementById('editAbsentStudents').value),
+        lesson_topic: document.getElementById('editLessonTopicEdit').value || null,
+        notes: document.getElementById('editLessonNotesEdit').value || null,
+        is_salary_calculated: document.getElementById('editSalaryCalculated').checked
+    };
+    
+    // Валідація
+    if (!formData.lesson_date || !formData.lesson_duration_minutes || formData.total_students < 0 || formData.present_students < 0) {
+        showAlert('Заповніть всі обов\'язкові поля коректно', 'danger');
+        return;
+    }
+    
+    if (formData.present_students > formData.total_students) {
+        showAlert('Кількість присутніх не може перевищувати загальну кількість учнів', 'danger');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/conducted_lessons/${lessonId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Помилка збереження змін');
+        }
+        
+        // Закриваємо модальне вікно
+        bootstrap.Modal.getInstance(document.getElementById('editLessonModal')).hide();
+        
+        // Оновлюємо дані
+        await loadConductedLessons();
+        showAlert('Зміни успішно збережено', 'success');
+        
+    } catch (error) {
+        console.error('Error saving lesson:', error);
+        showAlert(error.message, 'danger');
+    }
+}
+
+// Позначити зарплату як нараховану
+async function markSalaryCalculated(id) {
+    if (!confirm('Позначити зарплату за цей урок як нараховану?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/conducted_lessons/${id}/mark_salary_calculated`, {
+            method: 'PUT'
+        });
+        
+        if (!response.ok) throw new Error('Помилка оновлення статусу');
+        
+        // Оновлюємо дані
+        await loadConductedLessons();
+        showAlert('Статус зарплати оновлено', 'success');
+        
+    } catch (error) {
+        showAlert(error.message, 'danger');
+    }
+}
+
+// Експорт даних
+function exportLessonsData() {
+    try {
+        // Підготовка даних для експорту
+        const exportData = allConductedLessons.map(lesson => ({
+            'Дата уроку': new Date(lesson.lesson_date).toLocaleString('uk-UA'),
+            'Вчитель': lesson.teacher_name || '',
+            'Гурток': lesson.club_name || '',
+            'Тема уроку': lesson.lesson_topic || '',
+            'Тривалість (хв)': lesson.lesson_duration_minutes || '',
+            'Всього учнів': lesson.total_students || 0,
+            'Присутніх': lesson.present_students || 0,
+            'Відсутніх': lesson.absent_students || 0,
+            'Відвідуваність (%)': lesson.total_students > 0 ? Math.round((lesson.present_students / lesson.total_students) * 100) : 0,
+            'Зарплата нарахована': lesson.is_salary_calculated ? 'Так' : 'Ні',
+            'Примітки': lesson.notes || ''
+        }));
+        
+        if (exportData.length === 0) {
+            showAlert('Немає даних для експорту', 'warning');
+            return;
+        }
+        
+        // Створюємо Excel файл за допомогою XLSX.js
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Проведені уроки');
+        
+        // Експортуємо як .xlsx файл
+        XLSX.writeFile(wb, `conducted_lessons_${new Date().toISOString().split('T')[0]}.xlsx`);
+        
+        showAlert(`Експортовано ${exportData.length} записів у Excel файл`, 'success');
+        
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        showAlert('Помилка експорту даних', 'danger');
+    }
+}
+
+// Функції допоміжні
+function showAlert(message, type) {
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
+    }
+    
+    const toastId = 'toast-' + Date.now();
+    const toastDiv = document.createElement('div');
+    toastDiv.id = toastId;
+    toastDiv.className = `toast align-items-center text-bg-${type} border-0`;
+    toastDiv.role = 'alert';
+    toastDiv.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toastDiv);
+    
+    const toast = new bootstrap.Toast(toastDiv, { autohide: true, delay: 5000 });
+    toast.show();
+    
+    toastDiv.addEventListener('hidden.bs.toast', () => {
+        toastDiv.remove();
+    });
+}
+
+function showLoading(show = true) {
+    let spinner = document.getElementById('loadingSpinner');
+    if (!spinner && show) {
+        spinner = document.createElement('div');
+        spinner.id = 'loadingSpinner';
+        spinner.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Завантаження...</span></div>';
+        spinner.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;';
+        document.body.appendChild(spinner);
+    }
+    if (spinner) {
+        spinner.style.display = show ? 'block' : 'none';
+    }
+}
+
+// Обробники подій для radio buttons
+document.addEventListener('DOMContentLoaded', () => {
+    // Завантажуємо дані
+    loadConductedLessons();
+    
+    // Обробники для перемикання типу створення
+    document.querySelectorAll('input[name="createType"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'event') {
+                document.getElementById('eventForm').style.display = 'block';
+                document.getElementById('manualForm').style.display = 'none';
+            } else {
+                document.getElementById('eventForm').style.display = 'none';
+                document.getElementById('manualForm').style.display = 'block';
+            }
+        });
+    });
+});
+
+// Завантаження доступних розкладів
+async function loadAvailableSchedules() {
+    try {
+        const response = await fetch('/api/conducted_lessons/available-schedules');
+        if (!response.ok) throw new Error('Помилка завантаження розкладів');
+        
+        availableSchedules = await response.json();
+        
+        const select = document.getElementById('createScheduleId');
+        select.innerHTML = '<option value="">Оберіть розклад</option>';
+        
+        availableSchedules.forEach(schedule => {
+            const option = document.createElement('option');
+            option.value = schedule.id;
+            option.textContent = schedule.display_name;
+            option.setAttribute('data-student-count', schedule.student_count);
+            select.appendChild(option);
+        });
+        
+    } catch (error) {
+        console.error('Error loading schedules:', error);
+        showAlert('Помилка завантаження розкладів', 'danger');
+    }
+}
+
+// Завантаження завершених lesson events
+async function loadCompletedLessonEvents() {
+    try {
+        // TODO: Додати API endpoint для завершених lesson events
+        // ЗАГЛУШКА: відключаємо lesson events поки що
+        console.log('💡 Завершені lesson events тимчасово недоступні');
+        
+        const select = document.getElementById('createLessonEventId');
+        select.innerHTML = '<option value="">Функція недоступна</option>';
+        
+    } catch (error) {
+        console.error('Error loading lesson events:', error);
+        // Не показуємо помилку, оскільки цей API може ще не існувати
+    }
+}
+
+// Завантаження студентів для обраного розкладу
+async function loadScheduleStudents() {
+    const scheduleId = document.getElementById('createScheduleId').value;
+    console.log('🔍 loadScheduleStudents called with scheduleId:', scheduleId);
+    
+    if (!scheduleId) {
+        document.getElementById('studentsAttendanceList').innerHTML = '<div class="text-muted text-center py-4"><i class="bi bi-arrow-left"></i> Спочатку оберіть розклад</div>';
+        document.getElementById('attendanceStats').style.display = 'none';
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        
+        const url = `/api/conducted_lessons/schedule/${scheduleId}/students`;
+        console.log('📡 Fetching students from:', url);
+        
+        const response = await fetch(url);
+        console.log('📨 Response status:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Response error:', errorText);
+            throw new Error(`Помилка завантаження студентів: ${response.status} ${errorText}`);
+        }
+        
+        scheduleStudents = await response.json();
+        console.log('👥 Loaded students:', scheduleStudents);
+        
+        if (scheduleStudents.length === 0) {
+            document.getElementById('studentsAttendanceList').innerHTML = '<div class="text-muted text-center py-4">У цьому розкладі немає записаних студентів</div>';
+            document.getElementById('attendanceStats').style.display = 'none';
+            return;
+        }
+        
+        // Створюємо список студентів з чекбоксами
+        let studentsHTML = '';
+        scheduleStudents.forEach((student, index) => {
+            studentsHTML += `
+                <div class="form-check d-flex justify-content-between align-items-center py-2 px-3 rounded mb-2" style="background-color: #f8f9fa;">
+                    <div class="form-check">
+                        <input class="form-check-input student-attendance" type="checkbox" 
+                               id="student_${student.id}" value="${student.id}" 
+                               data-student-name="${student.full_name}" checked
+                               onchange="updateAttendanceStats()">
+                        <label class="form-check-label" for="student_${student.id}">
+                            <strong>${student.full_name}</strong>
+                            ${student.phone_parent ? '<br><small class="text-muted">' + student.phone_parent + '</small>' : ''}
+                        </label>
+                    </div>
+                    <div class="attendance-status">
+                        <span class="badge bg-success">Присутній</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        document.getElementById('studentsAttendanceList').innerHTML = studentsHTML;
+        document.getElementById('attendanceStats').style.display = 'block';
+        
+        // Оновлюємо статистику
+        updateAttendanceStats();
+        
+    } catch (error) {
+        console.error('❌ Error loading students:', error);
+        document.getElementById('studentsAttendanceList').innerHTML = `<div class="text-danger text-center py-4">Помилка завантаження студентів: ${error.message}</div>`;
+        showAlert(`Помилка завантаження студентів: ${error.message}`, 'danger');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Оновлення статистики присутності
+function updateAttendanceStats() {
+    const checkboxes = document.querySelectorAll('.student-attendance');
+    const total = checkboxes.length;
+    const present = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const absent = total - present;
+    
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('presentCount').textContent = present;
+    document.getElementById('absentCount').textContent = absent;
+    
+    // Оновлюємо badge'і біля кожного студента
+    checkboxes.forEach(checkbox => {
+        const statusElement = checkbox.closest('.form-check').parentElement.querySelector('.attendance-status span');
+        if (checkbox.checked) {
+            statusElement.textContent = 'Присутній';
+            statusElement.className = 'badge bg-success';
+        } else {
+            statusElement.textContent = 'Відсутній';
+            statusElement.className = 'badge bg-danger';
+        }
+    });
+}
+
+// Позначити всіх як присутніх
+function markAllPresent() {
+    document.querySelectorAll('.student-attendance').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateAttendanceStats();
+}
+
+// Позначити всіх як відсутніх
+function markAllAbsent() {
+    document.querySelectorAll('.student-attendance').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateAttendanceStats();
+}
+
+// Збереження нового уроку
+async function saveNewLesson() {
+    const createType = document.querySelector('input[name="createType"]:checked').value;
+    
+    try {
+        showLoading(true);
+        
+        if (createType === 'event') {
+            await saveNewLessonFromEvent();
+        } else {
+            await saveManualLesson();
+        }
+        
+        // Закриваємо модальне вікно
+        bootstrap.Modal.getInstance(document.getElementById('createLessonModal')).hide();
+        
+        // Оновлюємо дані
+        await loadConductedLessons();
+        showAlert('Урок успішно створено', 'success');
+        
+    } catch (error) {
+        console.error('Error saving lesson:', error);
+        showAlert(error.message, 'danger');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Збереження уроку з lesson event
+async function saveNewLessonFromEvent() {
+    const lessonEventId = document.getElementById('createLessonEventId').value;
+    const notes = document.getElementById('createEventNotes').value;
+    
+    if (!lessonEventId) {
+        throw new Error('Оберіть урок для створення запису');
+    }
+    
+    const response = await fetch('/api/conducted_lessons', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            lesson_event_id: parseInt(lessonEventId),
+            notes: notes || null
+        })
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Помилка створення уроку');
+    }
+}
+
+// Збереження вручного уроку
+async function saveManualLesson() {
+    const scheduleId = document.getElementById('createScheduleId').value;
+    const lessonDate = document.getElementById('createLessonDate').value;
+    const duration = document.getElementById('createDuration').value;
+    const notes = document.getElementById('createManualNotes').value;
+    const autoPayroll = document.getElementById('createAutoPayroll').checked;
+    
+    if (!scheduleId) {
+        throw new Error('Оберіть розклад');
+    }
+    
+    if (!lessonDate) {
+        throw new Error('Вкажіть дату та час уроку');
+    }
+    
+    // Збираємо дані про присутність студентів
+    const attendanceData = [];
+    document.querySelectorAll('.student-attendance').forEach(checkbox => {
+        attendanceData.push({
+            student_id: parseInt(checkbox.value),
+            status: checkbox.checked ? 'present' : 'absent'
+        });
+    });
+    
+    if (attendanceData.length === 0) {
+        throw new Error('Спочатку оберіть студентів для уроку');
+    }
+    
+    const response = await fetch('/api/conducted_lessons/manual', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            schedule_id: parseInt(scheduleId),
+            lesson_date: new Date(lessonDate).toISOString(),
+            student_attendance: attendanceData,
+            notes: notes || null,
+            lesson_duration_minutes: duration ? parseInt(duration) : null,
+            auto_calculate_payroll: autoPayroll
+        })
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Помилка створення вручного уроку');
+    }
+}
+
+// Видалення проведеного уроку
+async function deleteLesson(lessonId) {
+    try {
+        // Спочатку отримаємо попередження
+        const warningResponse = await fetch(`/api/conducted_lessons/${lessonId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!warningResponse.ok) {
+            throw new Error('Помилка отримання інформації про урок');
+        }
+        
+        const warningData = await warningResponse.json();
+        
+        // Перевіряємо чи відповідь коректна
+        if (!warningData) {
+            throw new Error('Некоректна відповідь від сервера');
+        }
+        
+        if (warningData.error) {
+            // Показуємо попередження з детальною інформацією
+            const lesson = warningData.conducted_lesson || {};
+            const deps = warningData.dependencies || {};
+            
+            const confirmMessage = `⚠️ УВАГА! Видалення проведеного уроку:\n\n` +
+                `📚 Урок: ${lesson.club_name || 'Видалений гурток'}\n` +
+                `👨‍🏫 Вчитель: ${lesson.teacher_name || 'N/A'}\n` +
+                `📅 Дата: ${lesson.lesson_date || 'N/A'}\n` +
+                `👥 Присутніх: ${lesson.present_students || 0}/${lesson.total_students || 0}\n\n` +
+                `🗑️ БУДЕ ВИДАЛЕНО:\n` +
+                `• ${deps.attendance_records || 0} записів відвідуваності\n` +
+                `• ${deps.payroll_records || 0} записів зарплати\n\n` +
+                `${warningData.warning || '⚠️ Видалення є незворотним!'}\n\n` +
+                `Ця дія є НЕЗВОРОТНОЮ!\n\n` +
+                `Ви впевнені що хочете видалити цей урок?`;
+            
+            if (confirm(confirmMessage)) {
+                // Видаляємо з force=true
+                const deleteResponse = await fetch(`/api/conducted_lessons/${lessonId}?force=true`, {
+                    method: 'DELETE'
+                });
+                
+                if (!deleteResponse.ok) {
+                    throw new Error('Помилка видалення уроку');
+                }
+                
+                const deleteData = await deleteResponse.json();
+                
+                if (deleteData.success) {
+                    showAlert(`✅ ${deleteData.message}. Видалено: ${deleteData.deleted.attendance_records} відміток, ${deleteData.deleted.payroll_records} зарплат`, 'success');
+                    await loadConductedLessons(); // Оновлюємо список
+                } else {
+                    throw new Error('Неочікувана відповідь сервера');
+                }
+            }
+        } else {
+            // Урок не має залежностей - видаляємо відразу
+            if (confirm('Ви впевнені що хочете видалити цей урок?')) {
+                showAlert('✅ Урок успішно видалено', 'success');
+                await loadConductedLessons();
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error deleting lesson:', error);
+        showAlert(`❌ Помилка видалення уроку: ${error.message}`, 'danger');
+    }
+}
+
+// === НОВІ ФУНКЦІЇ ДЛЯ РЕДАГУВАННЯ ВІДВІДУВАНОСТІ ===
+
+// Завантаження списку учнів для редагування уроку
+async function loadStudentsForLessonEdit(lessonId) {
+    const studentsList = document.getElementById('editStudentsList');
+    const statsElement = document.getElementById('editAttendanceStats');
+    
+    try {
+        // Показуємо лоадер
+        studentsList.innerHTML = `
+            <div class="text-center text-muted">
+                <div class="spinner-border spinner-border-sm me-2"></div>
+                Завантажуємо список учнів...
+            </div>
+        `;
+        
+        // Завантажуємо учнів
+        const response = await fetch(`/api/conducted_lessons/${lessonId}/students`);
+        if (!response.ok) {
+            throw new Error('Помилка завантаження списку учнів');
+        }
+        
+        const students = await response.json();
+        
+        if (students.length === 0) {
+            studentsList.innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="bi bi-people"></i><br>
+                    Учнів не знайдено для цього уроку
+                </div>
+            `;
+            return;
+        }
+        
+        // Обчислюємо статистику
+        const totalStudents = students.length;
+        const presentStudents = students.filter(s => s.status === 'PRESENT').length;
+        const absentStudents = totalStudents - presentStudents;
+        
+        // Оновлюємо скриті поля для сумісності
+        document.getElementById('editTotalStudents').value = totalStudents;
+        document.getElementById('editPresentStudents').value = presentStudents;
+        document.getElementById('editAbsentStudents').value = absentStudents;
+        
+        // Оновлюємо статистику в заголовку
+        statsElement.innerHTML = `
+            <span class="attendance-stats-badge">
+                ${presentStudents}/${totalStudents} присутніх (${Math.round(presentStudents/totalStudents*100)}%)
+            </span>
+        `;
+        
+        // Відображаємо список учнів
+        let studentsHTML = '';
+        students.forEach(student => {
+            const isPresent = student.status === 'PRESENT';
+            studentsHTML += `
+                <div class="student-attendance-item" data-student-id="${student.student_id}">
+                    <div class="student-info">
+                        <i class="bi bi-person"></i> ${student.full_name}
+                    </div>
+                    <div class="attendance-controls">
+                        <button type="button" 
+                                class="btn btn-sm attendance-status-btn ${isPresent ? 'present btn-success' : 'absent btn-secondary'}"
+                                onclick="toggleStudentAttendance(${lessonId}, ${student.student_id}, '${isPresent ? 'ABSENT' : 'PRESENT'}')">
+                            ${isPresent ? 'PRESENT' : 'ABSENT'}
+                        </button>
+                        <button type="button" 
+                                class="btn btn-sm btn-outline-danger remove-student-btn"
+                                onclick="removeStudentFromLesson(${lessonId}, ${student.student_id}, '${student.full_name}')"
+                                title="Видалити учня з уроку">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        studentsList.innerHTML = studentsHTML;
+        
+    } catch (error) {
+        console.error('Error loading students:', error);
+        studentsList.innerHTML = `
+            <div class="text-center text-danger">
+                <i class="bi bi-exclamation-triangle"></i><br>
+                Помилка завантаження: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// Зміна статусу відвідуваності учня
+async function toggleStudentAttendance(lessonId, studentId, newStatus) {
+    try {
+        const response = await fetch(`/api/conducted_lessons/${lessonId}/students/${studentId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: newStatus })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Помилка зміни статусу');
+        }
+        
+        const result = await response.json();
+        
+        // Перезавантажуємо список учнів
+        await loadStudentsForLessonEdit(lessonId);
+        
+        showAlert(`✅ ${result.message}`, 'success');
+        
+    } catch (error) {
+        console.error('Error toggling attendance:', error);
+        showAlert(`Помилка: ${error.message}`, 'danger');
+    }
+}
+
+// Видалення учня з уроку
+async function removeStudentFromLesson(lessonId, studentId, studentName) {
+    if (!confirm(`Видалити "${studentName}" з цього уроку?\n\nУВАГА: Це також видалить запис відвідуваності для цього учня.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/conducted_lessons/${lessonId}/students/${studentId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Помилка видалення учня');
+        }
+        
+        const result = await response.json();
+        
+        // Перезавантажуємо список учнів
+        await loadStudentsForLessonEdit(lessonId);
+        
+        showAlert(`✅ ${result.message}`, 'success');
+        
+    } catch (error) {
+        console.error('Error removing student:', error);
+        showAlert(`Помилка: ${error.message}`, 'danger');
+    }
+}
+
+</script>
+{% endblock %}

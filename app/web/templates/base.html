@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ title }} - Школа життя{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        /* Простий та зручний дизайн */
+        body {
+            background-color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #333;
+        }
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+        }
+        .nav-link {
+            color: #495057;
+            font-weight: 500;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 2px 8px;
+            transition: all 0.2s ease;
+        }
+        .nav-link:hover {
+            background-color: #e9ecef;
+            color: #0d6efd;
+        }
+        .nav-link.active {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .nav-link i {
+            margin-right: 10px;
+            width: 18px;
+        }
+        .card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+        }
+        .table {
+            margin-bottom: 0;
+        }
+        .table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+        .table td {
+            vertical-align: middle;
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        .btn {
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+        .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .btn-success {
+            background-color: #198754;
+            border-color: #198754;
+        }
+        .btn-warning {
+            background-color: #fd7e14;
+            border-color: #fd7e14;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .badge {
+            font-weight: 500;
+            padding: 6px 10px;
+        }
+        h1, h2, h3 {
+            color: #212529;
+            font-weight: 600;
+        }
+        .alert {
+            border-radius: 8px;
+            border: none;
+        }
+        .modal-content {
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+        .form-control {
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+        }
+        .form-control:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+        
+        /* ЗАГАЛЬНІ СТИЛІ ДЛЯ ЦЕНТРУВАННЯ ТЕКСТУ В УСІХ ТАБЛИЦЯХ */
+        .table th, .table td {
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+        
+        /* Вирівнювання для фільтрів залишаємо по центру, але input-и вирівнюємо нормально */
+        .table .filter-input, .table .filter-select {
+            text-align: left !important;
+        }
+        
+        /* Для кнопок дій також центруємо */
+        .table .btn-group {
+            justify-content: center;
+        }
+        
+        /* Спеціально для статусів гуртків (галочки/хрестики) */
+        .table .club-status {
+            text-align: center !important;
+            font-size: 1.1rem;
+        }
+        
+        /* Липкий горизонтальний скрол для таблиць */
+        .table-responsive {
+            position: relative;
+        }
+        
+        .table-responsive::-webkit-scrollbar {
+            height: 12px;
+            position: sticky;
+            bottom: 0;
+            z-index: 999;
+        }
+        
+        .table-responsive::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 6px;
+        }
+        
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 6px;
+        }
+        
+        .table-responsive::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Альтернативний підхід - завжди показувати скрол */
+        .table-responsive {
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #888 #f1f1f1;
+        }
+        
+        /* Покращений липкий скрол-бар внизу */
+        .sticky-horizontal-scroll {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 24px;
+            background: rgba(248, 249, 250, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 2px solid #007bff;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1050;
+            overflow-x: auto;
+            overflow-y: hidden;
+            transition: opacity 0.3s ease;
+            /* Покращені скролбари */
+            scrollbar-width: thin;
+            scrollbar-color: #007bff #f1f3f4;
+        }
+        
+        .sticky-horizontal-scroll::-webkit-scrollbar {
+            height: 12px;
+        }
+        
+        .sticky-horizontal-scroll::-webkit-scrollbar-track {
+            background: #f1f3f4;
+            border-radius: 6px;
+        }
+        
+        .sticky-horizontal-scroll::-webkit-scrollbar-thumb {
+            background: #007bff;
+            border-radius: 6px;
+            border: 2px solid #f1f3f4;
+        }
+        
+        .sticky-horizontal-scroll::-webkit-scrollbar-thumb:hover {
+            background: #0056b3;
+        }
+        
+        .sticky-horizontal-scroll-content {
+            height: 1px;
+            width: 100%;
+        }
+        
+        /* Стилі для меню бокового меню */
+        .sidebar-heading {
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05rem;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 0.5rem;
+        }
+        
+        .sidebar .nav-link {
+            padding: 0.5rem 1rem;
+            color: #495057;
+            border-radius: 0.25rem;
+            margin: 0 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: #f8f9fa;
+            color: #007bff;
+        }
+        
+        .sidebar .nav-link.active {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 0.5rem;
+            width: 16px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="text-center mb-4">
+                        <h3 class="text-dark fw-bold">ШКОЛА ЖИТТЯ БРУСИЛІВ</h3>
+                        <small class="text-muted">Система обліку відвідуваності</small>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <!-- 🏠 ГОЛОВНА -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/">
+                                <i class="bi bi-house-fill"></i>
+                                Головна
+                            </a>
+                        </li>
+                        
+                        <!-- 👥 ОСНОВНІ ДАНІ -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading text-muted px-3 mt-4 mb-1 text-uppercase">
+                                <i class="bi bi-people-fill"></i> Основні дані
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/students">
+                                <i class="bi bi-person"></i>
+                                Учні
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/teachers">
+                                <i class="bi bi-person-badge"></i>
+                                Вчителі
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/clubs">
+                                <i class="bi bi-collection"></i>
+                                Гуртки
+                            </a>
+                        </li>
+                        
+                        <!-- 📅 НАВЧАЛЬНИЙ ПРОЦЕС -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading text-muted px-3 mt-4 mb-1 text-uppercase">
+                                <i class="bi bi-calendar-check"></i> Навчальний процес
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/schedules">
+                                <i class="bi bi-calendar3"></i>
+                                Розклад
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/attendance">
+                                <i class="bi bi-check2-square"></i>
+                                Відвідуваність
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/conducted_lessons">
+                                <i class="bi bi-book"></i>
+                                Проведені уроки
+                            </a>
+                        </li>
+                        
+                        <!-- 💰 ФІНАНСИ -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading text-muted px-3 mt-4 mb-1 text-uppercase">
+                                <i class="bi bi-currency-dollar"></i> Фінанси
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/pay_rates">
+                                <i class="bi bi-cash-coin"></i>
+                                Тарифи
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/payroll">
+                                <i class="bi bi-currency-dollar"></i>
+                                Зарплати
+                            </a>
+                        </li>
+                        
+                        <!-- 📊 ЗВІТИ ТА АНАЛІТИКА -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading text-muted px-3 mt-4 mb-1 text-uppercase">
+                                <i class="bi bi-graph-up"></i> Звіти та аналітика
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/analytics">
+                                <i class="bi bi-table"></i>
+                                Аналітика відвідуваності
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/statistics">
+                                <i class="bi bi-graph-up-arrow"></i>
+                                Статистика
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/audit">
+                                <i class="bi bi-clock-history"></i>
+                                Історія змін
+                            </a>
+                        </li>
+                        
+                        <!-- 🤖 АВТОМАТИЗАЦІЯ -->
+                        <li class="nav-item mt-3">
+                            <h6 class="sidebar-heading text-muted px-3 mt-4 mb-1 text-uppercase">
+                                <i class="bi bi-gear"></i> Автоматизація
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/bot">
+                                <i class="bi bi-robot"></i>
+                                Telegram Бот
+                            </a>
+                        </li>
+                        <!-- Вкладка "Додаткова автоматизація" прихована за запитом користувача -->
+                        <!-- 
+                        <li class="nav-item">
+                            <a class="nav-link" href="/admin/automations">
+                                <i class="bi bi-magic"></i>
+                                Додаткова автоматизація
+                            </a>
+                        </li>
+                        -->
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <!-- Заголовок сторінки видалено, щоб уникнути дублювання -->
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- XLSX library for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="/static/admin.js?v=2025103001"></script>
+    
+    <!-- Покращений скрипт для липкого горизонтального скролу -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let stickyScrollBars = new Map(); // Зберігаємо створені скрол-бари
+        
+        // Видаляємо старі скрол-бари
+        function removeStickyScrollBars() {
+            stickyScrollBars.forEach((stickyScroll, table) => {
+                if (stickyScroll && stickyScroll.parentNode) {
+                    stickyScroll.parentNode.removeChild(stickyScroll);
+                }
+            });
+            stickyScrollBars.clear();
+        }
+        
+        // Створюємо липкий скрол для широких таблиць
+        function createStickyHorizontalScroll() {
+            // Спочатку видаляємо старі
+            removeStickyScrollBars();
+            
+            const tableResponsive = document.querySelectorAll('.table-responsive');
+            
+            tableResponsive.forEach((table, index) => {
+                // Перевіряємо чи таблиця ширша за контейнер
+                const needsScroll = table.scrollWidth > table.clientWidth;
+                console.log(`Table ${index}: scrollWidth=${table.scrollWidth}, clientWidth=${table.clientWidth}, needsScroll=${needsScroll}`);
+                
+                if (needsScroll) {
+                    // Створюємо унікальний ID для кожної таблиці
+                    const tableId = `sticky-scroll-${index}`;
+                    
+                    // Створюємо липкий скрол-бар
+                    const stickyScroll = document.createElement('div');
+                    stickyScroll.className = 'sticky-horizontal-scroll';
+                    stickyScroll.id = tableId;
+                    stickyScroll.style.display = 'none';
+                    
+                    const scrollContent = document.createElement('div');
+                    scrollContent.className = 'sticky-horizontal-scroll-content';
+                    
+                    // КРИТИЧНО: Враховуємо ширину бокової панелі (sidebar)
+                    const sidebar = document.querySelector('.sidebar');
+                    const sidebarWidth = sidebar ? sidebar.offsetWidth : 0;
+                    const actualTableWidth = table.scrollWidth;
+                    
+                    // Встановлюємо правильну ширину
+                    scrollContent.style.width = actualTableWidth + 'px';
+                    
+                    // Позиціонуємо скрол з урахуванням sidebar
+                    stickyScroll.style.left = sidebarWidth + 'px';
+                    stickyScroll.style.right = '0px';
+                    
+                    stickyScroll.appendChild(scrollContent);
+                    document.body.appendChild(stickyScroll);
+                    
+                    // Зберігаємо посилання
+                    stickyScrollBars.set(table, stickyScroll);
+                    
+                    // Синхронізація скролу - ПОКРАЩЕНА
+                    const syncFromTable = function() {
+                        if (stickyScroll && stickyScroll.parentNode) {
+                            stickyScroll.scrollLeft = table.scrollLeft;
+                        }
+                    };
+                    
+                    const syncFromSticky = function() {
+                        if (table && stickyScroll.parentNode) {
+                            table.scrollLeft = stickyScroll.scrollLeft;
+                        }
+                    };
+                    
+                    table.addEventListener('scroll', syncFromTable);
+                    stickyScroll.addEventListener('scroll', syncFromSticky);
+                    
+                    // Показуємо/ховаємо липкий скрол - ПОКРАЩЕНА ЛОГІКА
+                    function toggleStickyScroll() {
+                        if (!stickyScroll || !stickyScroll.parentNode) return;
+                        
+                        const tableRect = table.getBoundingClientRect();
+                        const windowHeight = window.innerHeight;
+                        
+                        // Перевіряємо чи нижня частина таблиці видна
+                        const isTableBottomVisible = tableRect.bottom <= windowHeight;
+                        const isTableScrollable = table.scrollWidth > table.clientWidth;
+                        const isTableVisible = tableRect.top < windowHeight && tableRect.bottom > 0;
+                        
+                        // Показуємо тільки якщо:
+                        // 1. Таблиця потребує скролу
+                        // 2. Таблиця частково видна
+                        // 3. Нижня частина таблиці НЕ видна (тобто користувач прокрутив вниз)
+                        if (isTableScrollable && isTableVisible && !isTableBottomVisible) {
+                            stickyScroll.style.display = 'block';
+                            
+                            // Оновлюємо ширину на випадок змін
+                            const newWidth = table.scrollWidth;
+                            scrollContent.style.width = newWidth + 'px';
+                            
+                            // Синхронізуємо позицію скролу
+                            stickyScroll.scrollLeft = table.scrollLeft;
+                            
+                            console.log(`Showing sticky scroll for table ${index}, width: ${newWidth}px`);
+                        } else {
+                            stickyScroll.style.display = 'none';
+                        }
+                    }
+                    
+                    // Відстежуємо скрол сторінки та зміни розміру
+                    window.addEventListener('scroll', toggleStickyScroll, { passive: true });
+                    window.addEventListener('resize', toggleStickyScroll);
+                    
+                    // Початкова перевірка з затримкою
+                    setTimeout(toggleStickyScroll, 100);
+                    setTimeout(toggleStickyScroll, 500); // Додаткова перевірка для динамічного контенту
+                }
+            });
+        }
+        
+        // Запускаємо після завантаження DOM
+        createStickyHorizontalScroll();
+        
+        // Повторно запускаємо при динамічному оновленні таблиць
+        const observer = new MutationObserver(function(mutations) {
+            let shouldUpdate = false;
+            
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList') {
+                    // Перевіряємо чи додалися/змінилися таблиці
+                    const addedNodes = Array.from(mutation.addedNodes);
+                    const hasTableChanges = addedNodes.some(node => 
+                        node.nodeType === 1 && 
+                        (node.classList && node.classList.contains('table-responsive') || 
+                         node.querySelector && node.querySelector('.table-responsive'))
+                    );
+                    
+                    if (hasTableChanges) {
+                        shouldUpdate = true;
+                    }
+                }
+            });
+            
+            if (shouldUpdate) {
+                // Затримка для завершення рендерингу
+                setTimeout(createStickyHorizontalScroll, 300);
+            }
+        });
+        
+        // Спостерігаємо за змінами в основному контенті
+        const mainContent = document.querySelector('main') || document.body;
+        observer.observe(mainContent, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Додаткове оновлення при зміні hash (для SPA поведінки)
+        window.addEventListener('hashchange', function() {
+            setTimeout(createStickyHorizontalScroll, 500);
+        });
+        
+        // Глобальна функція для ручного оновлення (можна викликати з інших скриптів)
+        window.updateStickyScroll = createStickyHorizontalScroll;
+    });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

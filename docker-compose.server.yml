@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "3001:3001"
+    env_file:
+      - .env.production
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - postgres
+    networks:
+      - services
+
+  dispatcher:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    command: >
+      sh -c "
+        echo '⏰ Очікуємо webapp...' &&
+        sleep 30 &&
+        echo '🤖 Запускаємо диспетчер...' &&
+        python -m app.workers.dispatcher
+      "
+    depends_on:
+      - webapp
+    networks:
+      - services
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: schoola
+      POSTGRES_USER: schoola
+      POSTGRES_PASSWORD: schoola
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schoola -d schoola"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - services
+
+volumes:
+  postgres_data:
+
+networks:
+  services:
+    external: true

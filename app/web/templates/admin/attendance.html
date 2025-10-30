@@ -1,0 +1,935 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>✅ Управління відвідуваністю</h2>
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-primary" onclick="refreshAttendance()">
+            <i class="bi bi-arrow-clockwise"></i> Оновити
+        </button>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAttendanceModal">
+            <i class="bi bi-plus-circle"></i> Додати запис
+        </button>
+    </div>
+</div>
+
+<!-- Loading Spinner -->
+<div id="loadingSpinner" class="text-center py-4" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Завантаження...</span>
+    </div>
+    <p class="mt-2 text-muted">Завантаження даних відвідуваності...</p>
+</div>
+
+<!-- Фільтри -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-2">
+                <label for="filterDateFrom" class="form-label">Дата з</label>
+                <input type="date" class="form-control" id="filterDateFrom" onchange="handleDateFromChange()">
+            </div>
+            <div class="col-md-2">
+                <label for="filterDateTo" class="form-label">Дата по</label>
+                <input type="date" class="form-control" id="filterDateTo" onchange="filterAttendance()">
+            </div>
+            <div class="col-md-2">
+                <label for="filterClub" class="form-label">Гурток</label>
+                <select class="form-select" id="filterClub" onchange="filterAttendance()">
+                    <option value="">Всі гуртки</option>
+                    <!-- Заповнюється динамічно -->
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="filterTeacher" class="form-label">Вчитель</label>
+                <select class="form-select" id="filterTeacher" onchange="filterAttendance()">
+                    <option value="">Всі вчителі</option>
+                    <!-- Заповнюється динамічно -->
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="filterStatus" class="form-label">Статус</label>
+                <select class="form-select" id="filterStatus" onchange="filterAttendance()">
+                    <option value="">Всі статуси</option>
+                    <option value="PRESENT">Присутні</option>
+                    <option value="ABSENT">Відсутні</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-success me-2" onclick="exportToExcel()" title="Експорт в Excel">
+                    <i class="bi bi-download"></i> Excel
+                </button>
+                <button class="btn btn-secondary" onclick="resetFilters()" title="Скинути фільтри">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Панель масових операцій -->
+<div class="card mb-4" id="bulkActionsPanel" style="display: none;">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <span id="selectedCount" class="text-muted">Вибрано записів: 0</span>
+            </div>
+            <div class="col-md-8">
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-success" onclick="bulkUpdateStatus('PRESENT')">
+                        <i class="bi bi-check-circle"></i> Позначити присутніми
+                    </button>
+                    <button type="button" class="btn btn-warning" onclick="bulkUpdateStatus('ABSENT')">
+                        <i class="bi bi-x-circle"></i> Позначити відсутніми
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="bulkDelete()">
+                        <i class="bi bi-trash"></i> Видалити вибрані
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="clearSelection()">
+                        <i class="bi bi-x"></i> Скасувати вибір
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="attendanceTable">
+                <thead>
+                    <tr>
+                        <th>
+                            <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll()">
+                        </th>
+                        <th>Дата</th>
+                        <th>Студент</th>
+                        <th>Гурток</th>
+                        <th>Вчитель</th>
+                        <th>Статус</th>
+                        <th>Дата відмітки</th>
+                        <th>Час відмітки</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceTableBody">
+                    <!-- Заповнюється динамічно -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Статистика відвідуваності</h5>
+                </div>
+                <div class="card-body" id="attendanceStats">
+                    <!-- Заповнюється динамічно -->
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Останні події</h5>
+                </div>
+                <div class="card-body" id="recentEvents">
+                    <!-- Заповнюється динамічно -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Attendance Modal -->
+<div class="modal fade" id="addAttendanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Додати запис відвідуваності</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addAttendanceForm">
+                    <div class="mb-3">
+                        <label for="attendanceLessonEvent" class="form-label">Урок *</label>
+                        <select class="form-select" id="attendanceLessonEvent" name="lessonEventId" required>
+                            <option value="">Оберіть урок</option>
+                            <!-- Заповнюється динамічно -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="attendanceStudent" class="form-label">Студент *</label>
+                        <select class="form-select" id="attendanceStudent" name="studentId" required>
+                            <option value="">Оберіть студента</option>
+                            <!-- Заповнюється динамічно -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="attendanceStatus" class="form-label">Статус *</label>
+                        <select class="form-select" id="attendanceStatus" name="status" required>
+                            <option value="">Оберіть статус</option>
+                            <option value="PRESENT">Присутній</option>
+                            <option value="ABSENT">Відсутній</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" onclick="saveAttendance()">Зберегти</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Змінні для зберігання даних
+let allAttendanceRecords = [];
+let clubs = [];
+let teachers = [];
+let students = [];
+let lessonEvents = [];
+
+// Функції для збереження стану фільтрів
+function saveFiltersState() {
+    const filters = {
+        dateFrom: document.getElementById('filterDateFrom').value,
+        dateTo: document.getElementById('filterDateTo').value,
+        club: document.getElementById('filterClub').value,
+        teacher: document.getElementById('filterTeacher').value,
+        status: document.getElementById('filterStatus').value
+    };
+    localStorage.setItem('attendanceFilters', JSON.stringify(filters));
+}
+
+function restoreFiltersState() {
+    const savedFilters = localStorage.getItem('attendanceFilters');
+    if (savedFilters) {
+        const filters = JSON.parse(savedFilters);
+        // НЕ відновлюємо дати - вони завжди мають бути за останній тиждень
+        // document.getElementById('filterDateFrom').value = filters.dateFrom || '';
+        // document.getElementById('filterDateTo').value = filters.dateTo || '';
+        
+        // Відновлюємо тільки інші фільтри
+        document.getElementById('filterClub').value = filters.club || '';
+        document.getElementById('filterTeacher').value = filters.teacher || '';
+        document.getElementById('filterStatus').value = filters.status || '';
+        
+        // НЕ застосовуємо фільтри автоматично - loadAllAttendanceData() сам завантажить дані
+        // setTimeout(() => filterAttendance(), 100);
+    }
+}
+
+// Завантаження даних при відкритті сторінки
+document.addEventListener('DOMContentLoaded', function() {
+    loadAllAttendanceData();
+    
+    // Додати обробник для скидання форми при закритті модального вікна
+    const modal = document.getElementById('addAttendanceModal');
+    modal.addEventListener('hidden.bs.modal', function () {
+        resetAttendanceForm();
+    });
+});
+
+async function loadAllAttendanceData() {
+    try {
+        showLoading(true);
+        
+        // Встановлюємо фільтр за ОСТАННІЙ ТИЖДЕНЬ (7 днів назад до сьогодні)
+        const today = new Date();
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        
+        const dateFrom = weekAgo.toISOString().split('T')[0];
+        const dateTo = today.toISOString().split('T')[0];
+        
+        console.log(`📅 Завантаження за останній тиждень: ${dateFrom} - ${dateTo}`);
+        
+        // Встановлюємо значення в поля фільтрів
+        document.getElementById('filterDateFrom').value = dateFrom;
+        document.getElementById('filterDateTo').value = dateTo;
+        
+        // Завантажити дані з фільтром за останній тиждень
+        const [attendanceData, clubsData, teachersData, studentsData, eventsData] = await Promise.all([
+            apiCall(`attendance?date_from=${dateFrom}&date_to=${dateTo}`),
+            apiCall('clubs'),
+            apiCall('teachers'),
+            apiCall('students'),
+            apiCall('lesson-events')
+        ]);
+        
+        allAttendanceRecords = attendanceData;
+        clubs = clubsData;
+        teachers = teachersData;
+        students = studentsData;
+        lessonEvents = eventsData;
+        
+        // Заповнити фільтри
+        fillAttendanceFilters();
+        
+        // Заповнити модальну форму
+        fillAttendanceForm();
+        
+        // Показати дані
+        displayAttendanceRecords(allAttendanceRecords);
+        updateAttendanceStats();
+        
+        // Відновити збережені фільтри
+        restoreFiltersState();
+        
+        showLoading(false);
+    } catch (error) {
+        showLoading(false);
+        console.error('❌ Помилка завантаження даних відвідуваності:', error);
+        showAlert(`Помилка завантаження даних відвідуваності: ${error.message}`, 'danger');
+    }
+}
+
+function fillAttendanceFilters() {
+    // Заповнити фільтр гуртків
+    fillSelectOptions('filterClub', clubs, 'id', 'name');
+    
+    // Заповнити фільтр вчителів
+    fillSelectOptions('filterTeacher', teachers, 'id', 'full_name');
+}
+
+function fillAttendanceForm() {
+    // Заповнити список студентів - створюємо display name з first_name та last_name
+    const studentsWithDisplayName = students.map(student => ({
+        ...student,
+        display_name: `${student.first_name} ${student.last_name}`
+    }));
+    fillSelectOptions('attendanceStudent', studentsWithDisplayName, 'id', 'display_name');
+    
+    // Заповнити список уроків (тільки нещодавні)
+    const recentEvents = lessonEvents.slice(0, 20); // Останні 20 уроків
+    fillSelectOptions('attendanceLessonEvent', recentEvents, 'id', 'display_name');
+}
+
+function displayAttendanceRecords(records) {
+    const tbody = document.getElementById('attendanceTableBody');
+    tbody.innerHTML = '';
+    
+    if (records.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-muted">
+                    <i class="bi bi-calendar-x"></i><br>
+                    Записів відвідуваності не знайдено
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    records.forEach(record => {
+        const row = document.createElement('tr');
+        
+        // Додаємо подвійний клік для редагування
+        row.style.cursor = 'pointer';
+        row.setAttribute('title', 'Подвійний клік для редагування');
+        row.addEventListener('dblclick', () => editAttendance(record.id));
+        // Розділяємо дату і час відмітки
+        const markedDateTime = new Date(record.marked_at);
+        const markedDate = markedDateTime.toLocaleDateString('uk-UA');
+        const markedTime = markedDateTime.toLocaleTimeString('uk-UA', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        row.innerHTML = `
+            <td>
+                <input type="checkbox" class="form-check-input record-checkbox" 
+                       value="${record.id}" onchange="updateBulkActions()">
+            </td>
+            <td>${new Date(record.lesson_event.date).toLocaleDateString('uk-UA')}</td>
+            <td>${record.student.first_name} ${record.student.last_name}</td>
+            <td>${record.lesson_event.club ? record.lesson_event.club.name : 'Видалений гурток'}</td>
+            <td>${record.lesson_event.teacher ? record.lesson_event.teacher.full_name : 'N/A'}</td>
+            <td>
+                ${record.status === 'PRESENT' ? 
+                    '<span class="badge bg-success">Присутній</span>' : 
+                    '<span class="badge bg-danger">Відсутній</span>'
+                }
+            </td>
+            <td>${markedDate}</td>
+            <td>${markedTime}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+async function filterAttendance() {
+    // Зберігаємо стан фільтрів
+    saveFiltersState();
+    
+    const dateFromFilter = document.getElementById('filterDateFrom').value;
+    const dateToFilter = document.getElementById('filterDateTo').value;
+    const clubFilter = parseInt(document.getElementById('filterClub').value);
+    const teacherFilter = parseInt(document.getElementById('filterTeacher').value);
+    const statusFilter = document.getElementById('filterStatus').value;
+    
+    console.log('🔍 Фільтрація запущена:', {
+        dateFrom: dateFromFilter,
+        dateTo: dateToFilter,
+        club: clubFilter,
+        teacher: teacherFilter,
+        status: statusFilter,
+        totalRecords: allAttendanceRecords.length
+    });
+    
+    // ВАЖЛИВО: Якщо змінились дати - робимо новий API запит
+    const hasDateFrom = dateFromFilter && dateFromFilter.trim() !== '';
+    const hasDateTo = dateToFilter && dateToFilter.trim() !== '';
+    
+    if (hasDateFrom || hasDateTo) {
+        try {
+            showLoading(true);
+            
+            // Робимо API запит з новими датами
+            let url = '/api/attendance?';
+            if (hasDateFrom) url += `date_from=${dateFromFilter}&`;
+            if (hasDateTo) url += `date_to=${dateToFilter}&`;
+            url += 'limit=10000';
+            
+            console.log(`🌐 Завантажуємо дані з API: ${url}`);
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Помилка завантаження даних');
+            
+            allAttendanceRecords = await response.json();
+            console.log(`✅ Завантажено ${allAttendanceRecords.length} записів з API`);
+            
+            showLoading(false);
+        } catch (error) {
+            showLoading(false);
+            console.error('Помилка завантаження даних:', error);
+            showAlert('Помилка завантаження даних: ' + error.message, 'danger');
+            return;
+        }
+    }
+    
+    // Фільтруємо на клієнті по інших параметрах
+    let filteredRecords = allAttendanceRecords;
+    
+    // Фільтр по гуртку
+    if (clubFilter) {
+        const beforeFilter = filteredRecords.length;
+        filteredRecords = filteredRecords.filter(record => 
+            record.lesson_event.club_id === clubFilter
+        );
+        console.log(`🏫 Фільтр "гурток": ${beforeFilter} → ${filteredRecords.length} записів`);
+    }
+    
+    // Фільтр по вчителю
+    if (teacherFilter) {
+        const beforeFilter = filteredRecords.length;
+        filteredRecords = filteredRecords.filter(record => 
+            record.lesson_event.teacher_id === teacherFilter
+        );
+        console.log(`👨‍🏫 Фільтр "вчитель": ${beforeFilter} → ${filteredRecords.length} записів`);
+    }
+    
+    // Фільтр по статусу
+    if (statusFilter) {
+        const beforeFilter = filteredRecords.length;
+        filteredRecords = filteredRecords.filter(record => 
+            record.status === statusFilter
+        );
+        console.log(`📊 Фільтр "статус": ${beforeFilter} → ${filteredRecords.length} записів`);
+    }
+    
+    console.log(`✅ Фільтрація завершена: ${allAttendanceRecords.length} → ${filteredRecords.length} записів`);
+    displayAttendanceRecords(filteredRecords);
+    updateAttendanceStats(filteredRecords);
+}
+
+function resetFilters() {
+    document.getElementById('filterDateFrom').value = '';
+    document.getElementById('filterDateTo').value = '';
+    document.getElementById('filterClub').value = '';
+    document.getElementById('filterTeacher').value = '';
+    document.getElementById('filterStatus').value = '';
+    
+    displayAttendanceRecords(allAttendanceRecords);
+    updateAttendanceStats(allAttendanceRecords);
+}
+
+function updateAttendanceStats(records = allAttendanceRecords) {
+    const total = records.length;
+    const present = records.filter(r => r.status === 'PRESENT').length;
+    const absent = records.filter(r => r.status === 'ABSENT').length;
+    const attendanceRate = total > 0 ? ((present / total) * 100).toFixed(1) : 0;
+    
+    document.getElementById('attendanceStats').innerHTML = `
+        <p><strong>Всього записів:</strong> ${total}</p>
+        <p><strong>Присутніх:</strong> <span class="text-success">${present}</span></p>
+        <p><strong>Відсутніх:</strong> <span class="text-danger">${absent}</span></p>
+        <p><strong>Відвідуваність:</strong> <span class="badge bg-primary">${attendanceRate}%</span></p>
+    `;
+}
+
+async function refreshAttendance() {
+    await loadAllAttendanceData();
+    showAlert('Дані оновлено', 'success');
+}
+
+// Функція для оновлення тільки даних відвідуваності з збереженням фільтрів
+async function refreshAttendanceData() {
+    try {
+        // Завантажуємо тільки дані відвідуваності
+        const attendanceData = await apiCall('attendance');
+        allAttendanceRecords = attendanceData;
+        
+        // Застосовуємо поточні фільтри
+        filterAttendance();
+        
+    } catch (error) {
+        console.error('Error refreshing attendance data:', error);
+        showAlert('Помилка оновлення даних', 'danger');
+    }
+}
+
+function resetAttendanceForm() {
+    const form = document.getElementById('addAttendanceForm');
+    
+    // Очистити форму
+    form.reset();
+    
+    // Скинути режим редагування
+    delete form.dataset.editId;
+    
+    // Відновити заголовок
+    document.querySelector('#addAttendanceModal .modal-title').textContent = 'Додати запис відвідуваності';
+    
+    // Відновити оригінальні поля вибору (якщо вони були замінені)
+    const lessonEventContainer = form.querySelector('[name="lessonEventId"]')?.parentElement;
+    const studentContainer = form.querySelector('[name="studentId"]')?.parentElement;
+    
+    if (lessonEventContainer && !lessonEventContainer.querySelector('select')) {
+        lessonEventContainer.innerHTML = `
+            <label for="attendanceLessonEvent" class="form-label">Урок *</label>
+            <select class="form-select" id="attendanceLessonEvent" name="lessonEventId" required>
+                <option value="">Оберіть урок</option>
+                <!-- Заповнюється динамічно -->
+            </select>
+        `;
+        fillSelectOptions('attendanceLessonEvent', lessonEvents.slice(0, 20), 'id', 'display_name');
+    }
+    
+    if (studentContainer && !studentContainer.querySelector('select')) {
+        studentContainer.innerHTML = `
+            <label for="attendanceStudent" class="form-label">Студент *</label>
+            <select class="form-select" id="attendanceStudent" name="studentId" required>
+                <option value="">Оберіть студента</option>
+                <!-- Заповнюється динамічно -->
+            </select>
+        `;
+        const studentsWithDisplayName = students.map(student => ({
+            ...student,
+            display_name: `${student.first_name} ${student.last_name}`
+        }));
+        fillSelectOptions('attendanceStudent', studentsWithDisplayName, 'id', 'display_name');
+    }
+}
+
+// Повні CRUD функції
+async function saveAttendance() {
+    try {
+        const form = document.getElementById('addAttendanceForm');
+        const formData = new FormData(form);
+        const editId = form.dataset.editId;
+        
+        const data = {
+            lesson_event_id: parseInt(formData.get('lessonEventId')),
+            student_id: parseInt(formData.get('studentId')),
+            status: formData.get('status').toLowerCase(), // API очікує нижній регістр
+            marked_by: 1  // Системний адміністратор
+        };
+        
+        // Валідація
+        if (!data.lesson_event_id || !data.student_id || !data.status) {
+            showAlert('Заповніть всі обов\'язкові поля', 'warning');
+            return;
+        }
+        
+        // Перевірка на дублювання (тільки для нових записів)
+        if (!editId) {
+            const existing = allAttendanceRecords.find(record => 
+                record.lesson_event_id === data.lesson_event_id && 
+                record.student_id === data.student_id
+            );
+            if (existing) {
+                showAlert('Запис відвідуваності для цього студента на цьому уроці вже існує', 'warning');
+                return;
+            }
+        }
+        
+        if (editId) {
+            // Редагування існуючого запису
+            await apiCall(`attendance/${editId}`, 'PUT', data);
+            showAlert('Запис відвідуваності оновлено', 'success');
+        } else {
+            // Створення нового запису
+            await apiCall('attendance', 'POST', data);
+            showAlert('Запис відвідуваності додано', 'success');
+        }
+        
+        // Закрити модальне вікно
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addAttendanceModal'));
+        modal.hide();
+        
+        // Оновити тільки дані відвідуваності, зберігаючи фільтри
+        await refreshAttendanceData();
+        
+        // Очистити форму та скинути режим редагування
+        form.reset();
+        delete form.dataset.editId;
+        document.querySelector('#addAttendanceModal .modal-title').textContent = 'Додати запис відвідуваності';
+        
+    } catch (error) {
+        console.error('Error saving attendance:', error);
+        if (error.message && error.message.includes('already exists')) {
+            showAlert('Запис відвідуваності для цього студента на цьому уроці вже існує', 'warning');
+        } else {
+            showAlert('Помилка збереження запису відвідуваності', 'danger');
+        }
+    }
+}
+
+async function editAttendance(id) {
+    try {
+        const record = allAttendanceRecords.find(r => r.id === id);
+        if (!record) {
+            showAlert('Запис не знайдено', 'warning');
+            return;
+        }
+        
+        // Заповнити форму даними для редагування
+        document.getElementById('attendanceLessonEvent').value = record.lesson_event_id;
+        document.getElementById('attendanceStudent').value = record.student_id;
+        document.getElementById('attendanceStatus').value = record.status;
+        
+        // Відключити поля студента та уроку при редагуванні (щоб не було дублювання)
+        document.getElementById('attendanceLessonEvent').disabled = true;
+        document.getElementById('attendanceStudent').disabled = true;
+        
+        // Додати підказку
+        const clubName = record.lesson_event.club ? record.lesson_event.club.name : 'Видалений гурток';
+        const lessonInfo = `${clubName} - ${new Date(record.lesson_event.date).toLocaleDateString('uk-UA')}`;
+        const studentInfo = `${record.student.first_name} ${record.student.last_name}`;
+        
+        // Показати інформацію про урок та студента
+        document.getElementById('attendanceLessonEvent').parentElement.innerHTML = `
+            <label class="form-label">Урок</label>
+            <div class="form-control bg-light">${lessonInfo}</div>
+            <input type="hidden" name="lessonEventId" value="${record.lesson_event_id}">
+        `;
+        
+        document.getElementById('attendanceStudent').parentElement.innerHTML = `
+            <label class="form-label">Студент</label>
+            <div class="form-control bg-light">${studentInfo}</div>
+            <input type="hidden" name="studentId" value="${record.student_id}">
+        `;
+        
+        // Зберегти ID для оновлення
+        document.getElementById('addAttendanceForm').dataset.editId = id;
+        
+        // Змінити заголовок модального вікна
+        document.querySelector('#addAttendanceModal .modal-title').textContent = 'Редагувати відвідуваність';
+        
+        // Показати модальне вікно
+        const modal = new bootstrap.Modal(document.getElementById('addAttendanceModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error editing attendance:', error);
+        showAlert('Помилка редагування', 'danger');
+    }
+}
+
+async function updateAttendance(id, data) {
+    try {
+        await apiCall(`attendance/${id}`, 'PUT', data);
+        await refreshAttendanceData();
+        showAlert('Запис оновлено', 'success');
+    } catch (error) {
+        console.error('Error updating attendance:', error);
+        showAlert('Помилка оновлення запису', 'danger');
+    }
+}
+
+async function deleteAttendance(id) {
+    if (!confirm('Видалити запис відвідуваності?')) {
+        return;
+    }
+    
+    try {
+        await apiCall(`attendance/${id}`, 'DELETE');
+        await refreshAttendanceData();
+        showAlert('Запис видалено', 'success');
+    } catch (error) {
+        console.error('Error deleting attendance:', error);
+        showAlert('Помилка видалення запису', 'danger');
+    }
+}
+
+// Експорт в Excel
+function exportToExcel() {
+    try {
+        // Отримати відфільтровані дані
+        const currentData = getCurrentFilteredData();
+        
+        if (currentData.length === 0) {
+            showAlert('Немає даних для експорту', 'warning');
+            return;
+        }
+        
+        // Підготувати дані для Excel
+        const excelData = currentData.map(record => {
+            const markedDateTime = new Date(record.marked_at);
+            const markedDate = markedDateTime.toLocaleDateString('uk-UA');
+            const markedTime = markedDateTime.toLocaleTimeString('uk-UA', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            return {
+                'Дата': new Date(record.lesson_event.date).toLocaleDateString('uk-UA'),
+                'Студент': `${record.student.first_name} ${record.student.last_name}`,
+                'Гурток': record.lesson_event.club ? record.lesson_event.club.name : 'Видалений гурток',
+                'Вчитель': record.lesson_event.teacher ? record.lesson_event.teacher.full_name : 'N/A',
+                'Статус': record.status === 'PRESENT' ? 'Присутній' : 'Відсутній',
+                'Дата відмітки': markedDate,
+                'Час відмітки': markedTime
+            };
+        });
+        
+        // Створити worksheet
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Відвідуваність');
+        
+        // Генерувати ім'я файлу з поточною датою
+        const today = new Date().toISOString().split('T')[0];
+        const filename = `attendance_${today}.xlsx`;
+        
+        // Завантажити файл
+        XLSX.writeFile(wb, filename);
+        
+        showAlert('Excel файл завантажено', 'success');
+        
+    } catch (error) {
+        console.error('Error exporting to Excel:', error);
+        showAlert('Помилка експорту в Excel. Переконайтеся, що у вас встановлена бібліотека XLSX.', 'danger');
+    }
+}
+
+function getCurrentFilteredData() {
+    // Використовуємо ту саму логіку що й у filterAttendance()
+    const dateFromFilter = document.getElementById('filterDateFrom').value;
+    const dateToFilter = document.getElementById('filterDateTo').value;
+    const clubFilter = parseInt(document.getElementById('filterClub').value);
+    const teacherFilter = parseInt(document.getElementById('filterTeacher').value);
+    const statusFilter = document.getElementById('filterStatus').value;
+    
+    let filteredRecords = allAttendanceRecords;
+    
+    // Фільтр по діапазону дат (ТОЧНО ТА САМА ЛОГІКА що в filterAttendance)
+    const hasDateFrom = dateFromFilter && dateFromFilter.trim() !== '';
+    const hasDateTo = dateToFilter && dateToFilter.trim() !== '';
+    
+    if (hasDateFrom || hasDateTo) {
+        // Конвертуємо фільтри в Date об'єкти для правильного порівняння
+        const dateFromObj = hasDateFrom ? new Date(dateFromFilter + 'T00:00:00') : null;
+        const dateToObj = hasDateTo ? new Date(dateToFilter + 'T23:59:59') : null;
+        
+        filteredRecords = filteredRecords.filter(record => {
+            const recordDateObj = new Date(record.lesson_event.date);
+            
+            // 1. Якщо є "дата від" і дата запису менша - ВІДХИЛИТИ
+            if (dateFromObj && recordDateObj < dateFromObj) {
+                return false;
+            }
+            
+            // 2. Якщо є "дата до" і дата запису більша - ВІДХИЛИТИ
+            if (dateToObj && recordDateObj > dateToObj) {
+                return false;
+            }
+            
+            // 3. Інакше - ПРИЙНЯТИ
+            return true;
+        });
+    }
+    
+    if (clubFilter) {
+        filteredRecords = filteredRecords.filter(record => 
+            record.lesson_event.club_id === clubFilter
+        );
+    }
+    
+    if (teacherFilter) {
+        filteredRecords = filteredRecords.filter(record => 
+            record.lesson_event.teacher_id === teacherFilter
+        );
+    }
+    
+    if (statusFilter) {
+        filteredRecords = filteredRecords.filter(record => 
+            record.status === statusFilter
+        );
+    }
+    
+    return filteredRecords;
+}
+
+// Функція для обробки зміни поля "Дата з"
+function handleDateFromChange() {
+    const dateFromInput = document.getElementById('filterDateFrom');
+    const dateToInput = document.getElementById('filterDateTo');
+    
+    // Якщо "Дата з" заповнена, а "Дата по" порожня, заповнюємо "Дата по" тією ж датою
+    if (dateFromInput.value && !dateToInput.value) {
+        dateToInput.value = dateFromInput.value;
+        console.log(`📅 Автоматично заповнено "Дата по": ${dateToInput.value}`);
+    }
+    
+    // Викликаємо фільтрацію
+    filterAttendance();
+}
+
+// Функції для масових операцій
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const recordCheckboxes = document.querySelectorAll('.record-checkbox');
+    
+    recordCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const selectedCheckboxes = document.querySelectorAll('.record-checkbox:checked');
+    const selectedCount = selectedCheckboxes.length;
+    const bulkPanel = document.getElementById('bulkActionsPanel');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    
+    selectedCountSpan.textContent = `Вибрано записів: ${selectedCount}`;
+    
+    if (selectedCount > 0) {
+        bulkPanel.style.display = 'block';
+    } else {
+        bulkPanel.style.display = 'none';
+    }
+    
+    // Оновлюємо стан "вибрати всі"
+    const allCheckboxes = document.querySelectorAll('.record-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    
+    if (selectedCount === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (selectedCount === allCheckboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function getSelectedIds() {
+    const selectedCheckboxes = document.querySelectorAll('.record-checkbox:checked');
+    return Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+}
+
+function clearSelection() {
+    document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    updateBulkActions();
+}
+
+async function bulkUpdateStatus(newStatus) {
+    const selectedIds = getSelectedIds();
+    
+    if (selectedIds.length === 0) {
+        showAlert('Оберіть записи для оновлення', 'warning');
+        return;
+    }
+    
+    const statusText = newStatus === 'PRESENT' ? 'присутніми' : 'відсутніми';
+    if (!confirm(`Позначити ${selectedIds.length} записів як ${statusText}?`)) {
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        
+        // Оновлюємо кожен запис
+        const promises = selectedIds.map(id => 
+            apiCall(`attendance/${id}`, 'PUT', { status: newStatus.toLowerCase() })
+        );
+        
+        await Promise.all(promises);
+        
+        // Оновлюємо дані
+        await refreshAttendanceData();
+        clearSelection();
+        
+        showAlert(`${selectedIds.length} записів оновлено як ${statusText}`, 'success');
+        showLoading(false);
+        
+    } catch (error) {
+        console.error('Error bulk updating:', error);
+        showAlert('Помилка масового оновлення', 'danger');
+        showLoading(false);
+    }
+}
+
+async function bulkDelete() {
+    const selectedIds = getSelectedIds();
+    
+    if (selectedIds.length === 0) {
+        showAlert('Оберіть записи для видалення', 'warning');
+        return;
+    }
+    
+    if (!confirm(`Видалити ${selectedIds.length} записів відвідуваності? Цю дію неможливо скасувати.`)) {
+        return;
+    }
+    
+    try {
+        showLoading(true);
+        
+        // Видаляємо кожен запис
+        const promises = selectedIds.map(id => 
+            apiCall(`attendance/${id}`, 'DELETE')
+        );
+        
+        await Promise.all(promises);
+        
+        // Оновлюємо дані
+        await refreshAttendanceData();
+        clearSelection();
+        
+        showAlert(`${selectedIds.length} записів видалено`, 'success');
+        showLoading(false);
+        
+    } catch (error) {
+        console.error('Error bulk deleting:', error);
+        showAlert('Помилка масового видалення', 'danger');
+        showLoading(false);
+    }
+}
+</script>
+{% endblock %}

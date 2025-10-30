@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* Стилі гуртків в стилі інших таблиць */
+#clubsTable {
+    margin-top: 20px;
+}
+
+/* Специфічні розміри для колонок */
+#clubsTable th:nth-child(1), #clubsTable td:nth-child(1) { min-width: 150px; } /* Назва гуртка */
+#clubsTable th:nth-child(2), #clubsTable td:nth-child(2) { min-width: 100px; } /* Тривалість */
+#clubsTable th:nth-child(3), #clubsTable td:nth-child(3) { min-width: 140px; } /* Локація */
+#clubsTable th:nth-child(4), #clubsTable td:nth-child(4) { min-width: 140px; } /* Дата створення */
+#clubsTable th:nth-child(5), #clubsTable td:nth-child(5) { min-width: 120px; } /* Дії */
+
+/* Заголовки без яскравих кольорів */
+#clubsTable thead th {
+    white-space: nowrap;
+    padding: 12px 8px;
+}
+
+/* Фільтри компактні */
+#clubsTable .filter-row td {
+    padding: 8px 6px;
+}
+
+#clubsTable .filter-input,
+#clubsTable .filter-select {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    min-width: 90px;
+}
+
+/* Кнопки дій */
+#clubsTable .btn-group .btn {
+    margin: 0 1px;
+    padding: 4px 8px;
+}
+</style>
+
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>🎭 Управління гуртками</h2>
+    <div class="btn-group">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClubModal">
+            <i class="bi bi-plus-circle"></i> Додати гурток
+        </button>
+        <button type="button" class="btn btn-outline-success" onclick="exportClubsExcel()">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Експорт в Excel
+        </button>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="clubsTable">
+                <thead id="clubsTableHead">
+                    <!-- Заголовки будуть створені динамічно через JavaScript -->
+                </thead>
+                <tbody id="clubsTableBody">
+                    <!-- Дані будуть завантажені через JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Статистика гуртків</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Всього гуртків:</strong> {{ clubs|length }}</p>
+                    <p><strong>Середня тривалість:</strong> 
+                        {% if clubs %}
+                            {{ (clubs|sum(attribute='duration_min') / clubs|length)|round }} хв
+                        {% else %}
+                            0 хв
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Локації</h5>
+                </div>
+                <div class="card-body">
+                    {% set locations = clubs|map(attribute='location')|unique|list %}
+                    {% for location in locations %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span><i class="bi bi-geo-alt"></i> {{ location }}</span>
+                            <span class="badge bg-secondary">
+                                {{ clubs|selectattr('location', 'equalto', location)|list|length }}
+                            </span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Club Modal -->
+<div class="modal fade" id="addClubModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Додати новий гурток</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addClubForm">
+                    <div class="mb-3">
+                        <label for="clubName" class="form-label">Назва гуртка *</label>
+                        <input type="text" class="form-control" id="clubName" name="clubName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="duration" class="form-label">Тривалість (хвилини) *</label>
+                        <input type="number" class="form-control" id="duration" name="duration" min="30" max="180" value="60" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Локація *</label>
+                        <input type="text" class="form-control" id="location" name="location" placeholder="Кабінет 101" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" onclick="saveClub()">Зберегти</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Функції для гуртків тепер в admin.js -->
+{% endblock %}

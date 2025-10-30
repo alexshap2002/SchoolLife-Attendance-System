@@ -1,0 +1,1467 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="bi bi-graph-up-arrow text-primary"></i>
+            Статистика
+        </h2>
+        <div class="btn-group">
+            <button type="button" class="btn btn-primary" onclick="exportStatistics()">
+                <i class="bi bi-download"></i> Експорт
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="refreshStatistics()">
+                <i class="bi bi-arrow-clockwise"></i> Оновити
+            </button>
+        </div>
+    </div>
+
+    <!-- Фільтри -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-gradient-primary text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-funnel"></i> Фільтри та налаштування
+            </h5>
+        </div>
+        <div class="card-body">
+            <form id="statisticsFilters" class="row g-3">
+                <!-- Часовий період -->
+                <div class="col-md-3">
+                    <label for="startDate" class="form-label">Від дати</label>
+                    <input type="date" class="form-control" id="startDate" name="start_date">
+                </div>
+                <div class="col-md-3">
+                    <label for="endDate" class="form-label">До дати</label>
+                    <input type="date" class="form-control" id="endDate" name="end_date">
+                </div>
+                
+                <!-- Фільтри -->
+                <div class="col-md-3">
+                    <label for="clubFilter" class="form-label">Гурток</label>
+                    <select class="form-select" id="clubFilter" name="club_id">
+                        <option value="">Всі гуртки</option>
+                        {% for club in clubs %}
+                        <option value="{{ club.id }}">{{ club.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="teacherFilter" class="form-label">Вчитель</label>
+                    <select class="form-select" id="teacherFilter" name="teacher_id">
+                        <option value="">Всі вчителі</option>
+                        {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}">{{ teacher.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Швидкі фільтри -->
+                <div class="col-12">
+                    <label class="form-label">Швидкі періоди</label>
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="setQuickPeriod('today')">Сьогодні</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setQuickPeriod('week')">Цей тиждень</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setQuickPeriod('month')">Цей місяць</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setQuickPeriod('quarter')">Цей квартал</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setQuickPeriod('year')">Цей рік</button>
+                        <button type="button" class="btn btn-outline-danger" onclick="clearFilters()">Очистити</button>
+                    </div>
+                </div>
+                
+                <!-- Кнопки -->
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-search"></i> Застосувати фільтри
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="statisticsLoading" class="text-center my-5" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Завантаження...</span>
+        </div>
+        <p class="mt-2">Обчислення статистики...</p>
+    </div>
+
+    <!-- Статистика -->
+    <div id="statisticsContent">
+        
+        <!-- АЛЕРТИ (зверху, червона карта) -->
+        <div id="alertsSection" class="mb-4" style="display: none;">
+            <div class="card shadow border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Алерти та попередження
+                    </h5>
+                </div>
+                <div class="card-body" id="alertsContainer">
+                    <!-- Динамічно заповнюється JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Загальна статистика -->
+        <div class="row mb-4" id="overviewStats">
+            <!-- Динамічно заповнюється JavaScript -->
+        </div>
+
+        <!-- Графіки відвідуваності -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-pie-chart"></i> Відвідуваність
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="attendanceStatsContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-bar-chart"></i> Відвідуваність по днях тижня
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="weekdayStatsContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- НОВІ СЕКЦІЇ: Тренди + Пікові години + KPI -->
+        <div class="row mb-4">
+            <!-- Тренди відвідуваності -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-graph-up"></i> Тренди відвідуваності
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="trendsContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Пікові години занять -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-clock-history"></i> Пікові години занять
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="peakHoursContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI показники -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-dark text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-bullseye"></i> KPI показники
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="kpiContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистика гуртків та вчителів -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-warning text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-collection"></i> Статистика гуртків
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="clubsStatsContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-person-badge"></i> Статистика вчителів
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="teachersStatsContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Студенти зі зони ризику + Календар активності -->
+        <div class="row mb-4">
+            <!-- Студенти зі зони ризику -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="bi bi-exclamation-triangle"></i> Студенти зі зони ризику
+                        </h5>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <div id="atRiskStudentsContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Календар активності -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calendar3"></i> Календар активності
+                        </h5>
+                    </div>
+                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                        <div id="activityCalendarContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Топ студенти та пільги -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-trophy"></i> Топ-10 студентів за відвідуваністю
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="topStudentsContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-award"></i> Статистика пільг
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="benefitsStatsContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Фінансова статистика -->
+        <div class="row mb-4">
+            <div class="col-lg-12 mb-4">
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-dark text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-currency-dollar"></i> Фінансова статистика
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="financialStatsContainer">
+                            <!-- Динамічно заповнюється -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Детальні таблиці -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="clubs-tab" data-bs-toggle="tab" data-bs-target="#clubs-tabpane" type="button" role="tab">
+                                    <i class="bi bi-collection"></i> Гуртки
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="teachers-tab" data-bs-toggle="tab" data-bs-target="#teachers-tabpane" type="button" role="tab">
+                                    <i class="bi bi-person-badge"></i> Вчителі
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="students-tab" data-bs-toggle="tab" data-bs-target="#students-tabpane" type="button" role="tab">
+                                    <i class="bi bi-person"></i> Студенти
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="clubs-tabpane" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="clubsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Гурток</th>
+                                                <th>Записаних студентів</th>
+                                                <th>Відвідуваність</th>
+                                                <th>Дії</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="clubsTableBody">
+                                            <!-- Динамічно заповнюється -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="teachers-tabpane" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="teachersTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Вчитель</th>
+                                                <th>Розкладів</th>
+                                                <th>Проведено уроків</th>
+                                                <th>Студентів навчено</th>
+                                                <th>Дії</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="teachersTableBody">
+                                            <!-- Динамічно заповнюється -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="students-tabpane" role="tabpanel">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="studentsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Студент</th>
+                                                <th>Присутніх</th>
+                                                <th>Всього записів</th>
+                                                <th>Відвідуваність</th>
+                                                <th>Дії</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="studentsTableBody">
+                                            <!-- Динамічно заповнюється -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Custom styles -->
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+}
+.bg-gradient-success {
+    background: linear-gradient(45deg, #28a745, #1e7e34);
+}
+.bg-gradient-info {
+    background: linear-gradient(45deg, #17a2b8, #138496);
+}
+.bg-gradient-warning {
+    background: linear-gradient(45deg, #ffc107, #e0a800);
+}
+.bg-gradient-danger {
+    background: linear-gradient(45deg, #dc3545, #c82333);
+}
+.bg-gradient-secondary {
+    background: linear-gradient(45deg, #6c757d, #5a6268);
+}
+.bg-gradient-dark {
+    background: linear-gradient(45deg, #343a40, #23272b);
+}
+
+.stats-card {
+    border-left: 4px solid;
+    transition: all 0.3s ease;
+}
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+.stats-card-primary { border-color: #007bff; }
+.stats-card-success { border-color: #28a745; }
+.stats-card-info { border-color: #17a2b8; }
+.stats-card-warning { border-color: #ffc107; }
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: 10px 0;
+}
+
+.progress-ring {
+    border-radius: 50%;
+    background: conic-gradient(#28a745 0deg, #28a745 var(--progress-deg), #e9ecef var(--progress-deg), #e9ecef 360deg);
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+.progress-ring::before {
+    content: '';
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: white;
+    border-radius: 50%;
+}
+.progress-text {
+    position: relative;
+    z-index: 1;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+</style>
+
+<script>
+// Глобальні змінні для зберігання статистики та Chart.js інстансів
+let currentStatistics = null;
+let charts = {};
+
+// API клієнт для статистики
+async function fetchStatistics(filters = {}) {
+    const params = new URLSearchParams();
+    
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+    if (filters.club_id) params.append('club_id', filters.club_id);
+    if (filters.teacher_id) params.append('teacher_id', filters.teacher_id);
+    
+    const url = `/api/statistics?${params.toString()}`;
+    
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching statistics:', error);
+        throw error;
+    }
+}
+
+// Завантаження статистики
+async function loadStatistics(filters = {}) {
+    try {
+        document.getElementById('statisticsLoading').style.display = 'block';
+        document.getElementById('statisticsContent').style.opacity = '0.5';
+        
+        const data = await fetchStatistics(filters);
+        currentStatistics = data;
+        
+        // Оновлюємо всі компоненти
+        updateOverviewStats(data.overview);
+        updateAttendanceCharts(data.attendance);
+        updateClubsStats(data.clubs);
+        updateTeachersStats(data.teachers);
+        updateTopStudents(data.top_students);
+        updateBenefitsChart(data.benefits);
+        updateFinancialStats(data.financial);
+        updateDetailedTables(data);
+        
+        // НОВІ КОМПОНЕНТИ
+        updateAlerts(data.alerts);
+        updateAttendanceTrends(data.attendance_trends);
+        updatePeakHours(data.peak_hours);
+        updateKPIMetrics(data.kpi_metrics);
+        updateAtRiskStudents(data.at_risk_students);
+        updateActivityCalendar(data.activity_calendar);
+        
+        console.log('✅ Statistics loaded successfully (including new metrics)');
+        
+    } catch (error) {
+        console.error('❌ Error loading statistics:', error);
+        showAlert('Помилка завантаження статистики: ' + error.message, 'danger');
+    } finally {
+        document.getElementById('statisticsLoading').style.display = 'none';
+        document.getElementById('statisticsContent').style.opacity = '1';
+    }
+}
+
+// Оновлення загальної статистики
+function updateOverviewStats(overview) {
+    const container = document.getElementById('overviewStats');
+    
+    const filterInfo = overview.filter_period;
+    const periodText = filterInfo.start_date || filterInfo.end_date ? 
+        `(${filterInfo.start_date || '...'} - ${filterInfo.end_date || '...'})` : 
+        '(Весь період)';
+    
+    container.innerHTML = `
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-primary shadow">
+                <div class="card-body text-center">
+                    <i class="bi bi-people fs-1 text-primary mb-2"></i>
+                    <h3 class="text-primary">${overview.total_students}</h3>
+                    <p class="mb-0">Студентів</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-success shadow">
+                <div class="card-body text-center">
+                    <i class="bi bi-person-badge fs-1 text-success mb-2"></i>
+                    <h3 class="text-success">${overview.total_teachers}</h3>
+                    <p class="mb-0">Вчителів</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-info shadow">
+                <div class="card-body text-center">
+                    <i class="bi bi-collection fs-1 text-info mb-2"></i>
+                    <h3 class="text-info">${overview.total_clubs}</h3>
+                    <p class="mb-0">Гуртків</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-warning shadow">
+                <div class="card-body text-center">
+                    <i class="bi bi-calendar3 fs-1 text-warning mb-2"></i>
+                    <h3 class="text-warning">${overview.total_schedules}</h3>
+                    <p class="mb-0">Розкладів</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                <strong>Період аналізу:</strong> ${periodText}
+                ${filterInfo.club_id ? `<br><strong>Гурток:</strong> ID ${filterInfo.club_id}` : ''}
+                ${filterInfo.teacher_id ? `<br><strong>Вчитель:</strong> ID ${filterInfo.teacher_id}` : ''}
+            </div>
+        </div>
+    `;
+}
+
+// Швидкі періоди
+function setQuickPeriod(period) {
+    const now = new Date();
+    let startDate, endDate;
+    
+    switch(period) {
+        case 'today':
+            startDate = endDate = now.toISOString().split('T')[0];
+            break;
+        case 'week':
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - now.getDay() + 1); // Понеділок
+            startDate = weekStart.toISOString().split('T')[0];
+            endDate = now.toISOString().split('T')[0];
+            break;
+        case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            endDate = now.toISOString().split('T')[0];
+            break;
+        case 'quarter':
+            const quarter = Math.floor(now.getMonth() / 3);
+            startDate = new Date(now.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
+            endDate = now.toISOString().split('T')[0];
+            break;
+        case 'year':
+            startDate = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+            endDate = now.toISOString().split('T')[0];
+            break;
+    }
+    
+    if (startDate) document.getElementById('startDate').value = startDate;
+    if (endDate) document.getElementById('endDate').value = endDate;
+}
+
+function clearFilters() {
+    document.getElementById('statisticsFilters').reset();
+}
+
+// Обробка форми фільтрів
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('statisticsFilters');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const filters = {};
+        
+        for (let [key, value] of formData.entries()) {
+            if (value) filters[key] = value;
+        }
+        
+        loadStatistics(filters);
+    });
+    
+    // Завантажуємо початкову статистику
+    loadStatistics();
+});
+
+// Оновлення функцій (заглушки для Chart.js компонентів)
+function updateAttendanceCharts(attendance) {
+    console.log('Updating attendance charts:', attendance);
+    
+    // Оновлюємо загальну статистику відвідуваності
+    const attendanceContainer = document.getElementById('attendanceStatsContainer');
+    if (!attendance) {
+        attendanceContainer.innerHTML = '<p class="text-muted">Немає даних про відвідуваність</p>';
+        return;
+    }
+    
+    attendanceContainer.innerHTML = `
+        <div class="row">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-primary">${attendance.total_records || 0}</h4>
+                    <p class="mb-0">Всього записів</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-success">${attendance.present_count || 0}</h4>
+                    <p class="mb-0">Присутні</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-danger">${attendance.absent_count || 0}</h4>
+                    <p class="mb-0">Відсутні</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h4 class="text-info">${attendance.attendance_rate || 0}%</h4>
+                    <p class="mb-0">Відвідуваність</p>
+                </div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <div class="progress">
+                <div class="progress-bar bg-success" style="width: ${attendance.attendance_rate || 0}%">
+                    ${attendance.present_count || 0} присутніх
+                </div>
+                <div class="progress-bar bg-danger" style="width: ${100 - (attendance.attendance_rate || 0)}%">
+                    ${attendance.absent_count || 0} відсутніх
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Оновлюємо статистику по днях тижня
+    const weekdayContainer = document.getElementById('weekdayStatsContainer');
+    if (weekdayContainer && attendance.weekday_stats) {
+        const weekdayStats = attendance.weekday_stats;
+        
+        if (weekdayStats.length === 0 || weekdayStats.every(day => day.total === 0)) {
+            weekdayContainer.innerHTML = `
+                <div class="text-center p-4">
+                    <i class="bi bi-calendar-week text-muted" style="font-size: 2rem;"></i>
+                    <p class="text-muted mt-2">Немає даних про відвідуваність по днях тижня</p>
+                </div>
+            `;
+            return;
+        }
+        
+        weekdayContainer.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>День тижня</th>
+                            <th class="text-center">Всього</th>
+                            <th class="text-center">Присутні</th>
+                            <th class="text-center">Відсутні</th>
+                            <th class="text-center">Відвідуваність</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${weekdayStats.map(day => `
+                            <tr>
+                                <td><strong>${day.day}</strong></td>
+                                <td class="text-center">${day.total}</td>
+                                <td class="text-center text-success">${day.present}</td>
+                                <td class="text-center text-danger">${day.absent}</td>
+                                <td class="text-center">
+                                    <div class="d-flex align-items-center">
+                                        <span class="me-2">${day.attendance_rate}%</span>
+                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            <div class="progress-bar bg-success" 
+                                                 style="width: ${day.attendance_rate}%"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+}
+
+function updateClubsStats(clubs) {
+    const container = document.getElementById('clubsStatsContainer');
+    
+    // Захист від undefined/null clubs
+    if (!clubs || !Array.isArray(clubs)) {
+        container.innerHTML = '<p class="text-muted">Немає даних про гуртки</p>';
+        return;
+    }
+    
+    container.innerHTML = clubs.map(club => `
+        <div class="mb-2">
+            <div class="d-flex justify-content-between">
+                <span>${club.name || 'Невідомий гурток'}</span>
+                <span class="badge bg-primary">${club.enrolled_students || 0} студентів</span>
+            </div>
+            <div class="progress">
+                <div class="progress-bar" style="width: ${club.attendance_rate || 0}%">${club.attendance_rate || 0}%</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateTeachersStats(teachers) {
+    const container = document.getElementById('teachersStatsContainer');
+    
+    // Захист від undefined/null teachers
+    if (!teachers || !Array.isArray(teachers)) {
+        container.innerHTML = '<p class="text-muted">Немає даних про вчителів</p>';
+        return;
+    }
+    
+    container.innerHTML = teachers.map(teacher => `
+        <div class="mb-3 p-2 border rounded">
+            <strong>${teacher.name || 'Невідомий вчитель'}</strong>
+            <br>
+            <small>Розкладів: ${teacher.schedules_count || 0} | Уроків: ${teacher.lessons_conducted || 0} | Студентів: ${teacher.students_taught || 0}</small>
+        </div>
+    `).join('');
+}
+
+function updateTopStudents(students) {
+    const container = document.getElementById('topStudentsContainer');
+    
+    // Захист від undefined/null students
+    if (!students || !Array.isArray(students)) {
+        container.innerHTML = '<p class="text-muted">Немає даних про студентів</p>';
+        return;
+    }
+    
+    container.innerHTML = students.map((student, index) => `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>
+                <span class="badge bg-secondary me-2">${index + 1}</span>
+                ${student.name || 'Невідомий студент'}
+            </span>
+            <span class="badge bg-success">${student.attendance_rate || 0}%</span>
+        </div>
+    `).join('');
+}
+
+function updateBenefitsChart(benefits) {
+    console.log('Updating benefits chart:', benefits);
+    
+    const benefitsContainer = document.getElementById('benefitsStatsContainer');
+    if (!benefits) {
+        benefitsContainer.innerHTML = '<p class="text-muted">Немає даних про пільги</p>';
+        return;
+    }
+    
+    // Дані для візуалізації пільг
+    const benefitsData = [
+        { label: 'Малозабезпечені', value: benefits.low_income || 0, color: '#ff6384' },
+        { label: 'Багатодітні сім\'ї', value: benefits.large_family || 0, color: '#36a2eb' },
+        { label: 'Сім\'ї військових', value: benefits.military_family || 0, color: '#ffce56' },
+        { label: 'Внутрішньо переміщені', value: benefits.internally_displaced || 0, color: '#4bc0c0' },
+        { label: 'Сироти', value: benefits.orphan || 0, color: '#9966ff' },
+        { label: 'Інвалідність', value: benefits.disability || 0, color: '#ff9f40' },
+        { label: 'Соціальний ризик', value: benefits.social_risk || 0, color: '#ff6384' },
+        { label: 'Без пільг', value: benefits.no_benefits || 0, color: '#c9cbcf' }
+    ];
+    
+    // Фільтруємо тільки ті пільги, що мають значення > 0
+    const nonZeroBenefits = benefitsData.filter(benefit => benefit.value > 0);
+    
+    if (nonZeroBenefits.length === 0) {
+        benefitsContainer.innerHTML = '<p class="text-muted">Немає студентів з пільгами</p>';
+        return;
+    }
+    
+    // Загальна кількість студентів з пільгами
+    const totalWithBenefits = nonZeroBenefits.reduce((sum, benefit) => sum + benefit.value, 0);
+    
+    benefitsContainer.innerHTML = `
+        <div class="row">
+            ${nonZeroBenefits.map(benefit => `
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div style="width: 20px; height: 20px; background-color: ${benefit.color}; border-radius: 3px;"></div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small">${benefit.label}</span>
+                                <strong>${benefit.value}</strong>
+                            </div>
+                            <div class="progress mt-1" style="height: 6px;">
+                                <div class="progress-bar" 
+                                     style="width: ${(benefit.value / totalWithBenefits * 100).toFixed(1)}%; background-color: ${benefit.color};">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div class="mt-3 p-3 bg-light rounded">
+            <div class="row text-center">
+                <div class="col-md-6">
+                    <h5 class="text-primary">${totalWithBenefits}</h5>
+                    <small class="text-muted">Студентів з пільгами</small>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="text-secondary">${((totalWithBenefits / (totalWithBenefits + (benefits.no_benefits || 0))) * 100).toFixed(1)}%</h5>
+                    <small class="text-muted">Відсоток з пільгами</small>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateFinancialStats(financial) {
+    const container = document.getElementById('financialStatsContainer');
+    
+    // Захист від undefined значень
+    const payrollRecords = financial?.total_payroll_records || 0;
+    const totalAmount = financial?.total_amount || 0;
+    
+    container.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <div class="text-center">
+                    <h4 class="text-primary">${payrollRecords}</h4>
+                    <p class="mb-0">Записів зарплати</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-center">
+                    <h4 class="text-success">${totalAmount.toFixed(2)} ₴</h4>
+                    <p class="mb-0">Загальна сума</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function updateDetailedTables(data) {
+    // Оновлюємо таблиці в табах
+    const clubsTableBody = document.getElementById('clubsTableBody');
+    const teachersTableBody = document.getElementById('teachersTableBody');
+    const studentsTableBody = document.getElementById('studentsTableBody');
+    
+    // Захист від undefined data
+    if (!data) {
+        console.error('Data is undefined in updateDetailedTables');
+        return;
+    }
+    
+    // Таблиця гуртків
+    const clubs = data.clubs || [];
+    clubsTableBody.innerHTML = clubs.map(club => `
+        <tr>
+            <td>${club.name || 'Невідомий гурток'}</td>
+            <td>${club.enrolled_students || 0}</td>
+            <td>
+                <div class="progress">
+                    <div class="progress-bar bg-success" style="width: ${club.attendance_rate || 0}%">${club.attendance_rate || 0}%</div>
+                </div>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="filterByClub(${club.id || 0})">
+                    <i class="bi bi-funnel"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="4" class="text-center text-muted">Немає даних про гуртки</td></tr>';
+    
+    // Таблиця вчителів
+    const teachers = data.teachers || [];
+    teachersTableBody.innerHTML = teachers.map(teacher => `
+        <tr>
+            <td>${teacher.name || 'Невідомий вчитель'}</td>
+            <td>${teacher.schedules_count || 0}</td>
+            <td>${teacher.lessons_conducted || 0}</td>
+            <td>${teacher.students_taught || 0}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="filterByTeacher(${teacher.id || 0})">
+                    <i class="bi bi-funnel"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="5" class="text-center text-muted">Немає даних про вчителів</td></tr>';
+    
+    // Таблиця студентів
+    const students = data.top_students || [];
+    studentsTableBody.innerHTML = students.map(student => `
+        <tr>
+            <td>${student.name || 'Невідомий студент'}</td>
+            <td>${student.present_count || 0}</td>
+            <td>${student.total_attendance || 0}</td>
+            <td>
+                <div class="progress">
+                    <div class="progress-bar bg-success" style="width: ${student.attendance_rate || 0}%">${student.attendance_rate || 0}%</div>
+                </div>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-info" onclick="viewStudentDetails(${student.id || 0})">
+                    <i class="bi bi-eye"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="5" class="text-center text-muted">Немає даних про студентів</td></tr>';
+}
+
+// Додаткові функції
+function filterByClub(clubId) {
+    document.getElementById('clubFilter').value = clubId;
+    document.getElementById('statisticsFilters').dispatchEvent(new Event('submit'));
+}
+
+function filterByTeacher(teacherId) {
+    document.getElementById('teacherFilter').value = teacherId;
+    document.getElementById('statisticsFilters').dispatchEvent(new Event('submit'));
+}
+
+function viewStudentDetails(studentId) {
+    window.open(`/admin/students/${studentId}/full`, '_blank');
+}
+
+function refreshStatistics() {
+    const form = document.getElementById('statisticsFilters');
+    form.dispatchEvent(new Event('submit'));
+}
+
+function exportStatistics() {
+    if (!currentStatistics) {
+        showAlert('Спочатку завантажте статистику', 'warning');
+        return;
+    }
+    
+    // TODO: Implement export functionality
+    showAlert('Функція експорту буде додана пізніше', 'info');
+}
+
+// Утилітарні функції
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// ============ НОВІ ФУНКЦІЇ ДЛЯ НОВИХ МЕТРИК ============
+
+// 1. АЛЕРТИ ТА ПОПЕРЕДЖЕННЯ
+function updateAlerts(alerts) {
+    console.log('🔔 Updating alerts:', alerts);
+    const alertsSection = document.getElementById('alertsSection');
+    const alertsContainer = document.getElementById('alertsContainer');
+    
+    if (!alerts || alerts.length === 0) {
+        alertsSection.style.display = 'none';
+        return;
+    }
+    
+    alertsSection.style.display = 'block';
+    
+    const alertTypeColors = {
+        'danger': 'danger',
+        'warning': 'warning',
+        'info': 'info'
+    };
+    
+    alertsContainer.innerHTML = alerts.map(alert => `
+        <div class="alert alert-${alertTypeColors[alert.type] || 'info'} mb-2">
+            <i class="bi bi-${alert.icon}"></i>
+            <strong>${alert.message}</strong>
+            ${alert.count ? `<span class="badge bg-${alertTypeColors[alert.type] || 'info'} ms-2">${alert.count}</span>` : ''}
+        </div>
+    `).join('');
+}
+
+// 2. ТРЕНДИ ВІДВІДУВАНОСТІ
+function updateAttendanceTrends(trends) {
+    console.log('📈 Updating attendance trends:', trends);
+    const container = document.getElementById('trendsContainer');
+    
+    if (!trends || trends.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">Недостатньо даних для побудови трендів</p>';
+        return;
+    }
+    
+    // Візуалізація трендів як таблиця з прогрес-барами
+    const avgRate = (trends.reduce((sum, t) => sum + t.attendance_rate, 0) / trends.length).toFixed(2);
+    
+    container.innerHTML = `
+        <div class="mb-3 text-center">
+            <h4 class="text-primary">${avgRate}%</h4>
+            <small class="text-muted">Середня відвідуваність за період</small>
+        </div>
+        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Період</th>
+                        <th class="text-center">Відвідуваність</th>
+                        <th class="text-center">Уроків</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${trends.map(trend => `
+                        <tr title="Присутніх: ${trend.present} з ${trend.total_attendance_records || trend.total} записів відвідуваності">
+                            <td><strong>${trend.period}</strong></td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <span class="me-2">${trend.attendance_rate}%</span>
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        <div class="progress-bar ${trend.attendance_rate >= 80 ? 'bg-success' : trend.attendance_rate >= 60 ? 'bg-warning' : 'bg-danger'}" 
+                                             style="width: ${trend.attendance_rate}%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <strong>${trend.total}</strong>
+                                <small class="text-muted d-block">уроків</small>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+// 3. ПІКОВІ ГОДИНИ ЗАНЯТЬ
+function updatePeakHours(peakHours) {
+    console.log('⏰ Updating peak hours:', peakHours);
+    const container = document.getElementById('peakHoursContainer');
+    
+    if (!peakHours || !peakHours.hours || peakHours.hours.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">Недостатньо даних про години занять</p>';
+        return;
+    }
+    
+    const maxLessons = Math.max(...peakHours.hours.map(h => h.lessons_count));
+    const peakHourInfo = peakHours.peak_hour;
+    
+    container.innerHTML = `
+        ${peakHourInfo ? `
+        <div class="mb-3 text-center">
+            <h4 class="text-info">${peakHourInfo.hour}</h4>
+            <small class="text-muted">Найактивніша година (${peakHourInfo.lessons_count} уроків)</small>
+        </div>
+        ` : ''}
+        <div style="max-height: 300px; overflow-y: auto;">
+            ${peakHours.hours.map(hour => {
+                const percentage = (hour.lessons_count / maxLessons * 100).toFixed(0);
+                return `
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>${hour.hour}</span>
+                        <span class="badge bg-info">${hour.lessons_count} уроків</span>
+                    </div>
+                    <div class="progress" style="height: 15px;">
+                        <div class="progress-bar bg-info" style="width: ${percentage}%"></div>
+                    </div>
+                </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+// 4. KPI МЕТРИКИ
+function updateKPIMetrics(kpi) {
+    console.log('🎯 Updating KPI metrics:', kpi);
+    const container = document.getElementById('kpiContainer');
+    
+    if (!kpi) {
+        container.innerHTML = '<p class="text-muted text-center">Немає даних KPI</p>';
+        return;
+    }
+    
+    const lessonsKpi = kpi.lessons_plan || {};
+    const attendanceKpi = kpi.attendance_target || {};
+    const occupancyKpi = kpi.club_occupancy || {};
+    
+    container.innerHTML = `
+        <div class="alert alert-info mb-3">
+            <strong><i class="bi bi-info-circle"></i> Пояснення KPI:</strong>
+            <ul class="mb-0 mt-2 small">
+                <li><strong>Виконання плану уроків:</strong> Скільки з запланованих уроків було проведено</li>
+                <li><strong>Цільова відвідуваність:</strong> Наскільки близько до цілі 85% відвідуваності</li>
+                <li><strong>Заповненість гуртків:</strong> Середня кількість студентів на гурток (макс. 15)</li>
+            </ul>
+        </div>
+        <div class="row">
+            <!-- Виконання плану уроків -->
+            <div class="col-md-4 mb-3">
+                <h6><i class="bi bi-clipboard-check"></i> Виконання плану уроків</h6>
+                <small class="text-muted">Проведено уроків з запланованих</small>
+                <div class="mb-2 mt-2">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>План: ${lessonsKpi.planned || 0}</span>
+                        <span>Факт: ${lessonsKpi.completed || 0}</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar ${lessonsKpi.completion_rate >= 85 ? 'bg-success' : lessonsKpi.completion_rate >= 70 ? 'bg-warning' : 'bg-danger'}" 
+                             style="width: ${lessonsKpi.completion_rate || 0}%">
+                            ${lessonsKpi.completion_rate || 0}%
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        ${lessonsKpi.completion_rate >= 85 ? '✓ Відмінно!' : lessonsKpi.completion_rate >= 70 ? '⚠ Потрібно покращити' : '❌ Низький показник'}
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Цільова відвідуваність -->
+            <div class="col-md-4 mb-3">
+                <h6><i class="bi bi-graph-up-arrow"></i> Досягнення цільової відвідуваності</h6>
+                <small class="text-muted">Наскільки близько до цілі 85%</small>
+                <div class="mb-2 mt-2">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Ціль: ${attendanceKpi.target || 85}%</span>
+                        <span>Факт: ${attendanceKpi.actual || 0}%</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar ${attendanceKpi.actual >= attendanceKpi.target ? 'bg-success' : 'bg-warning'}" 
+                             style="width: ${Math.min(attendanceKpi.achievement_rate || 0, 100)}%">
+                            ${attendanceKpi.achievement_rate || 0}%
+                        </div>
+                    </div>
+                    ${attendanceKpi.actual >= attendanceKpi.target ? '<small class="text-success">✓ Ціль досягнута!</small>' : '<small class="text-warning">⚠ Працюємо над покращенням</small>'}
+                </div>
+            </div>
+            
+            <!-- Заповненість гуртків -->
+            <div class="col-md-4 mb-3">
+                <h6><i class="bi bi-people-fill"></i> Заповненість гуртків</h6>
+                <small class="text-muted">Середня кількість студентів на гурток</small>
+                <div class="mb-2 mt-2">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Середня: ${occupancyKpi.avg_students || 0}</span>
+                        <span>Макс: ${occupancyKpi.max_students || 15}</span>
+                    </div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar ${occupancyKpi.occupancy_rate >= 70 ? 'bg-success' : occupancyKpi.occupancy_rate >= 50 ? 'bg-warning' : 'bg-danger'}" 
+                             style="width: ${occupancyKpi.occupancy_rate || 0}%">
+                            ${occupancyKpi.occupancy_rate || 0}%
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        ${occupancyKpi.occupancy_rate >= 70 ? '✓ Гуртки добре заповнені' : occupancyKpi.occupancy_rate >= 50 ? '⚠ Можна набрати більше студентів' : '❌ Низька заповненість'}
+                    </small>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 5. СТУДЕНТИ ЗІ ЗОНИ РИЗИКУ
+function updateAtRiskStudents(students) {
+    console.log('⚠️ Updating at-risk students:', students);
+    const container = document.getElementById('atRiskStudentsContainer');
+    
+    if (!students || students.length === 0) {
+        container.innerHTML = `
+            <div class="text-center p-4">
+                <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                <p class="text-success mt-2"><strong>Відмінно!</strong></p>
+                <p class="text-muted">Немає студентів зі зони ризику</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = students.map(student => {
+        const rateColor = student.attendance_rate < 50 ? 'danger' : 'warning';
+        const icon = student.attendance_rate < 50 ? '🔴' : '🟡';
+        
+        return `
+        <div class="card mb-2 border-${rateColor}">
+            <div class="card-body p-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <strong>${icon} ${student.name}</strong>
+                        <br>
+                        <small class="text-muted">
+                            Відвідуваність: ${student.attendance_rate}% 
+                            (Присутніх: ${student.present_count} з ${student.total_attendance})
+                        </small>
+                    </div>
+                    <div class="text-end">
+                        <button class="btn btn-sm btn-primary" onclick="showStudentDetails(${student.id}, '${student.name}', ${student.attendance_rate}, ${student.present_count}, ${student.total_attendance}, '${student.phone || ''}')">
+                            <i class="bi bi-info-circle"></i> Деталі
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+    }).join('');
+}
+
+// Функція для показу детальної інформації про студента зі зони ризику
+function showStudentDetails(studentId, studentName, attendanceRate, presentCount, totalAttendance, phone) {
+    // Створюємо модальне вікно
+    const modalHtml = `
+        <div class="modal fade" id="studentDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title">
+                            <i class="bi bi-exclamation-triangle"></i> 
+                            Детальна інформація про студента зі зони ризику
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="card border-warning mb-3">
+                            <div class="card-body">
+                                <h4>${studentName}</h4>
+                                <hr>
+                                
+                                <!-- Статистика відвідуваності -->
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <div class="text-center p-3 bg-light rounded">
+                                            <h2 class="text-${attendanceRate < 50 ? 'danger' : 'warning'}">${attendanceRate}%</h2>
+                                            <small class="text-muted">Відвідуваність</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center p-3 bg-light rounded">
+                                            <h2 class="text-success">${presentCount}</h2>
+                                            <small class="text-muted">Присутніх</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="text-center p-3 bg-light rounded">
+                                            <h2 class="text-danger">${totalAttendance - presentCount}</h2>
+                                            <small class="text-muted">Відсутніх</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Progress bar -->
+                                <div class="mb-3">
+                                    <div class="progress" style="height: 25px;">
+                                        <div class="progress-bar bg-success" style="width: ${attendanceRate}%">
+                                            Присутній: ${attendanceRate}%
+                                        </div>
+                                        <div class="progress-bar bg-danger" style="width: ${100 - attendanceRate}%">
+                                            Відсутній: ${100 - attendanceRate}%
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Контактна інформація -->
+                                ${phone ? `
+                                <div class="alert alert-info">
+                                    <strong><i class="bi bi-telephone"></i> Контактна інформація:</strong>
+                                    <br>
+                                    <a href="tel:${phone}" class="btn btn-primary btn-sm mt-2">
+                                        <i class="bi bi-telephone-fill"></i> Зателефонувати: ${phone}
+                                    </a>
+                                </div>
+                                ` : '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle"></i> Контактна інформація відсутня</div>'}
+                                
+                                <!-- Рекомендації -->
+                                <div class="alert alert-${attendanceRate < 50 ? 'danger' : 'warning'}">
+                                    <strong><i class="bi bi-lightbulb"></i> Рекомендації:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        ${attendanceRate < 50 ? `
+                                        <li>🔴 <strong>Критична ситуація!</strong> Термінова бесіда з батьками</li>
+                                        <li>Розглянути можливість індивідуального підходу</li>
+                                        <li>З'ясувати причини частих пропусків</li>
+                                        ` : `
+                                        <li>🟡 Необхідний контроль відвідуваності</li>
+                                        <li>Зв'язатись з батьками для з'ясування ситуації</li>
+                                        <li>Мотивувати студента до регулярного відвідування</li>
+                                        `}
+                                    </ul>
+                                </div>
+                                
+                                <!-- Швидкі дії -->
+                                <div class="d-grid gap-2">
+                                    <a href="/admin/students/${studentId}/full" class="btn btn-primary" target="_blank">
+                                        <i class="bi bi-person-lines-fill"></i> Відкрити повну картку студента
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрити</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Видаляємо старе модальне вікно якщо є
+    const oldModal = document.getElementById('studentDetailsModal');
+    if (oldModal) {
+        oldModal.remove();
+    }
+    
+    // Додаємо нове модальне вікно
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Показуємо модальне вікно
+    const modal = new bootstrap.Modal(document.getElementById('studentDetailsModal'));
+    modal.show();
+    
+    // Видаляємо модальне вікно після закриття
+    document.getElementById('studentDetailsModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+// 6. КАЛЕНДАР АКТИВНОСТІ - НОВИЙ ДИЗАЙН
+function updateActivityCalendar(calendar) {
+    console.log('📅 Updating activity calendar:', calendar);
+    const container = document.getElementById('activityCalendarContainer');
+    
+    if (!calendar || calendar.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">Немає даних активності</p>';
+        return;
+    }
+    
+    // Знаходимо макс. кількість уроків для відносного масштабування
+    const maxLessons = Math.max(...calendar.map(d => d.lessons_count), 1);
+    
+    container.innerHTML = `
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                    <i class="bi bi-circle-fill text-success"></i> Високе (10+ уроків) | 
+                    <i class="bi bi-circle-fill text-warning"></i> Середнє (5-9) | 
+                    <i class="bi bi-circle-fill text-secondary"></i> Низьке (0-4)
+                </small>
+                <small class="text-muted">Всього днів: ${calendar.length}</small>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center">Дата</th>
+                        <th class="text-center">День тижня</th>
+                        <th>Уроків</th>
+                        <th>Активність</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${calendar.map(day => {
+                        const date = new Date(day.date);
+                        const dateStr = date.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+                        const weekday = date.toLocaleDateString('uk-UA', { weekday: 'short' });
+                        
+                        const badgeClass = 
+                            day.activity_level === 'high' ? 'success' :
+                            day.activity_level === 'medium' ? 'warning' :
+                            'secondary';
+                        
+                        const barWidth = (day.lessons_count / maxLessons * 100).toFixed(0);
+                        
+                        return `
+                        <tr>
+                            <td class="text-center"><strong>${dateStr}</strong></td>
+                            <td class="text-center text-muted">${weekday}</td>
+                            <td class="text-center">
+                                <span class="badge bg-${badgeClass}">${day.lessons_count}</span>
+                            </td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-${badgeClass}" style="width: ${barWidth}%">
+                                        ${barWidth}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+</script>
+{% endblock %}

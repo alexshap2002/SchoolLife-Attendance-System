@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Навігація -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/admin/">Головна</a></li>
+            <li class="breadcrumb-item"><a href="/admin/students">Учні</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ student.full_name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="bi bi-person-circle text-primary"></i>
+            Повна інформація про учня
+        </h2>
+        <div class="btn-group">
+            <a href="/admin/students" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Назад до списку
+            </a>
+            <button type="button" class="btn btn-primary" onclick="editStudentFull({{ student.id }})">
+                <i class="bi bi-pencil"></i> Редагувати
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Основна інформація -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-person"></i> Основна інформація</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="fw-bold">Ім'я:</td>
+                            <td>{{ student.first_name }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Прізвище:</td>
+                            <td>{{ student.last_name }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Дата народження:</td>
+                            <td>{{ student.birth_date.strftime('%d.%m.%Y') if student.birth_date else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Вік:</td>
+                            <td>{{ student.age if student.age else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Клас:</td>
+                            <td>{{ student.grade if student.grade else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Телефон дитини:</td>
+                            <td>{{ student.phone_child if student.phone_child else 'Не вказано' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Контактна інформація -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-telephone"></i> Контактна інформація</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="fw-bold">Телефон дитини:</td>
+                            <td>
+                                {% if student.phone_child %}
+                                    <a href="tel:{{ student.phone_child }}" class="text-decoration-none">
+                                        <i class="bi bi-telephone"></i> {{ student.phone_child }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">Не вказано</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Телефон матері:</td>
+                            <td>
+                                {% if student.phone_mother %}
+                                    <a href="tel:{{ student.phone_mother }}" class="text-decoration-none">
+                                        <i class="bi bi-telephone"></i> {{ student.phone_mother }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">Не вказано</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Телефон батька:</td>
+                            <td>
+                                {% if student.phone_father %}
+                                    <a href="tel:{{ student.phone_father }}" class="text-decoration-none">
+                                        <i class="bi bi-telephone"></i> {{ student.phone_father }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">Не вказано</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Адреса проживання -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-geo-alt"></i> Адреса проживання</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="fw-bold">Тип населеного пункту:</td>
+                            <td>{{ student.settlement_type if student.settlement_type else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Населений пункт:</td>
+                            <td>{{ student.location if student.location else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Повна адреса:</td>
+                            <td>{{ student.address if student.address else 'Не вказано' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Інформація про батьків -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-people"></i> Інформація про батьків</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="fw-bold">ПІБ матері:</td>
+                            <td>{{ student.mother_name if student.mother_name else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Телефон матері:</td>
+                            <td>{{ student.phone_mother if student.phone_mother else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">ПІБ батька:</td>
+                            <td>{{ student.father_name if student.father_name else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Телефон батька:</td>
+                            <td>{{ student.phone_father if student.phone_father else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Загальне (legacy):</td>
+                            <td class="text-muted">{{ student.parent_name if student.parent_name else 'Не вказано' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Адреса та місце проживання -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-geo-alt"></i> Місце проживання</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="fw-bold">Місце проживання:</td>
+                            <td>{{ student.location if student.location else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Тип населеного пункту:</td>
+                            <td>{{ student.settlement_type if student.settlement_type else 'Не вказано' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Адреса:</td>
+                            <td>{{ student.address if student.address else 'Не вказано' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Пільги -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-award"></i> Пільги та статус</h5>
+                </div>
+                <div class="card-body">
+                    {% if student.has_any_benefits %}
+                    <div class="row">
+                        {% if student.benefit_low_income %}
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-primary"><i class="bi bi-check-circle"></i> Малозабезпечені</span>
+                        </div>
+                        {% endif %}
+                        {% if student.benefit_large_family %}
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-primary"><i class="bi bi-check-circle"></i> Багатодітні</span>
+                        </div>
+                        {% endif %}
+                        {% if student.benefit_military_family %}
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-success"><i class="bi bi-check-circle"></i> Сім'я ЗСУ</span>
+                        </div>
+                        {% endif %}
+                        {% if student.benefit_internally_displaced %}
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-info"><i class="bi bi-check-circle"></i> ВПО</span>
+                        </div>
+                        {% endif %}
+                        {% if student.benefit_orphan %}
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-danger"><i class="bi bi-check-circle"></i> Сирота/під опікою</span>
+                        </div>
+                        {% endif %}
+                        {% if student.benefit_disability %}
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-warning text-dark"><i class="bi bi-check-circle"></i> Дитина з інвалідністю</span>
+                        </div>
+                        {% endif %}
+                        {% if student.benefit_social_risk %}
+                        <div class="col-md-6 mb-2">
+                            <span class="badge bg-secondary"><i class="bi bi-check-circle"></i> СЖО</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if student.benefit_other %}
+                    <div class="mt-3">
+                        <strong>Інші пільги:</strong>
+                        <p class="text-muted">{{ student.benefit_other }}</p>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <p class="text-muted mb-0">Без пільг</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Записи на розклади (гуртки з часом) -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-calendar3"></i> Розклад занять</h5>
+                </div>
+                <div class="card-body">
+                    {% if student.schedule_enrollments %}
+                    <div class="list-group">
+                        {% for schedule_enrollment in student.schedule_enrollments %}
+                        {% set schedule = schedule_enrollment.schedule %}
+                        {% set weekday_names = {
+                            1: "Понеділок", 2: "Вівторок", 3: "Середа", 4: "Четвер", 5: "П'ятниця"
+                        } %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-collection text-primary me-2"></i>
+                                        <strong>{{ schedule.club.name }}</strong>
+                                        {% if not schedule.active %}
+                                        <span class="badge bg-secondary ms-2">Неактивний</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex align-items-center text-muted small">
+                                        <i class="bi bi-calendar-day me-1"></i>
+                                        <span class="me-3">{{ weekday_names.get(schedule.weekday, 'День ' + schedule.weekday|string) }}</span>
+                                        <i class="bi bi-clock me-1"></i>
+                                        <span class="me-3">{{ schedule.start_time.strftime('%H:%M') }}</span>
+                                        {% if schedule.group_name %}
+                                        <i class="bi bi-people me-1"></i>
+                                        <span class="me-3">{{ schedule.group_name }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if schedule.teacher %}
+                                    <div class="text-muted small mt-1">
+                                        <i class="bi bi-person-badge me-1"></i>
+                                        {{ schedule.teacher.full_name }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">{{ schedule_enrollment.created_at.strftime('%d.%m.%Y') }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Не записаний на жодні розклади</p>
+                    {% endif %}
+                    
+                    <!-- Додаткова інформація про старі записи на гуртки (якщо є) -->
+                    {% if student.enrollments %}
+                    <hr class="my-3">
+                    <h6 class="text-muted mb-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Загальні записи на гуртки:
+                    </h6>
+                    <div class="text-muted small">
+                        {% for enrollment in student.enrollments %}
+                        <span class="badge bg-light text-dark me-1">{{ enrollment.club.name }}{% if enrollment.is_primary %} (основний){% endif %}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистика відвідуваності -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Статистика відвідуваності</h5>
+                </div>
+                <div class="card-body">
+                    {% if student.attendance_records %}
+                    {% set total_attendance = student.attendance_records|length %}
+                    {% set present_count = student.attendance_records|selectattr("status", "equalto", "PRESENT")|list|length %}
+                    {% set absent_count = total_attendance - present_count %}
+                    {% set attendance_rate = (present_count / total_attendance * 100)|round(1) if total_attendance > 0 else 0 %}
+                    
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4 class="text-primary">{{ total_attendance }}</h4>
+                            <small class="text-muted">Всього уроків</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-success">{{ present_count }}</h4>
+                            <small class="text-muted">Присутній</small>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-danger">{{ absent_count }}</h4>
+                            <small class="text-muted">Відсутній</small>
+                        </div>
+                    </div>
+                    
+                    <div class="progress mt-3" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ attendance_rate }}%;" 
+                             aria-valuenow="{{ attendance_rate }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            {{ attendance_rate }}%
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Немає записів про відвідуваність</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Технічна інформація -->
+        <div class="col-lg-12 mb-4">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> Технічна інформація</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>ID учня:</strong> {{ student.id }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Дата створення:</strong> {{ student.created_at.strftime('%d.%m.%Y %H:%M') }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Raw Row ID:</strong> {{ student.raw_row_id if student.raw_row_id else 'Не вказано' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function editStudentFull(studentId) {
+    // TODO: Implement full student editing modal
+    alert('Функція редагування буде додана пізніше');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: school-test-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: schoola_test
+      POSTGRES_USER: school_user
+      POSTGRES_PASSWORD: test_password_123
+      TZ: Europe/Kyiv
+    ports:
+      - "5433:5432"  # Мапуємо на 5433 щоб не конфліктувало з іншими БД
+    volumes:
+      - school_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U school_user -d schoola_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - school_test_network
+
+  # Web Application + API
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    container_name: school-test-webapp
+    restart: unless-stopped
+    ports:
+      - "8001:8000"  # Мапуємо на 8001 щоб не конфліктувало
+      - "3002:3001"  # WebApp на 3002
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: schoola_test
+      POSTGRES_USER: school_user
+      POSTGRES_PASSWORD: test_password_123
+      ENV: development
+      TZ: Europe/Kyiv
+      SECRET_KEY: local_test_secret_key_for_audit_testing_2024
+      ACCESS_TOKEN_EXPIRE_MINUTES: 4320
+      TELEGRAM_BOT_TOKEN: 8318467507:AAFy9JKoC3z8HJ_eRqzZful9T7St_nkr1Kw
+      WEBAPP_URL: http://localhost:3002
+      ADMIN_EMAIL: admin@test.local
+      ADMIN_PASSWORD: admin123
+      DOMAIN: localhost
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - school_test_network
+
+  # Telegram Bot Dispatcher
+  dispatcher:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    container_name: school-test-dispatcher
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: schoola_test
+      POSTGRES_USER: school_user
+      POSTGRES_PASSWORD: test_password_123
+      ENV: development
+      TZ: Europe/Kyiv
+      SECRET_KEY: local_test_secret_key_for_audit_testing_2024
+      ACCESS_TOKEN_EXPIRE_MINUTES: 4320
+      TELEGRAM_BOT_TOKEN: 8318467507:AAFy9JKoC3z8HJ_eRqzZful9T7St_nkr1Kw
+      WEBAPP_URL: http://localhost:3002
+      ADMIN_EMAIL: admin@test.local
+      ADMIN_PASSWORD: admin123
+      DOMAIN: localhost
+    command: >
+      sh -c "
+        echo '⏰ Waiting for webapp to be ready...' &&
+        sleep 30 &&
+        echo '🤖 Starting Telegram dispatcher...' &&
+        python -m app.workers.dispatcher
+      "
+    depends_on:
+      - webapp
+    networks:
+      - school_test_network
+
+networks:
+  school_test_network:
+    driver: bridge
+
+volumes:
+  school_test_data:
+    driver: local
+

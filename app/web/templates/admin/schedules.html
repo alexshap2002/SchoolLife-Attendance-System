@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>📅 Управління розкладом</h2>
+    <div class="btn-group">
+        <button type="button" class="btn btn-primary" onclick="openAddScheduleModal()">
+            <i class="bi bi-plus-circle"></i> Додати заняття
+        </button>
+        <button type="button" class="btn btn-outline-success" onclick="exportSchedulesExcel()">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Експорт в Excel
+        </button>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead id="schedulesTableHead">
+                    <!-- Буде генеруватися динамічно -->
+                </thead>
+                <tbody id="schedulesTableBody">
+                    <!-- Буде генеруватися динамічно -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Статистика розкладу</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Всього занять:</strong> {{ schedules|length }}</p>
+                    <p><strong>Активних:</strong> {{ schedules|selectattr('active')|list|length }}</p>
+                    <p><strong>Неактивних:</strong> {{ schedules|rejectattr('active')|list|length }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Розподіл по днях</h5>
+                </div>
+                <div class="card-body">
+                    {% set weekdays = {1: "Понеділок", 2: "Вівторок", 3: "Середа", 4: "Четвер", 5: "П'ятниця"} %}
+                    {% for day_num, day_name in weekdays.items() %}
+                        {% set day_schedules = schedules|selectattr('weekday', 'equalto', day_num)|list %}
+                        <p><strong>{{ day_name }}:</strong> {{ day_schedules|length }} занять</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Schedule Modal -->
+<div class="modal fade" id="addScheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Додати нове заняття</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addScheduleForm">
+                    <div class="mb-3">
+                        <label for="scheduleClub" class="form-label">Гурток *</label>
+                        <select class="form-select" id="scheduleClub" name="clubId" required>
+                            <option value="">Оберіть гурток</option>
+                            <!-- Заповнюється динамічно -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="scheduleTeacher" class="form-label">Вчитель *</label>
+                        <select class="form-select" id="scheduleTeacher" name="teacherId" required>
+                            <option value="">Оберіть вчителя</option>
+                            <!-- Заповнюється динамічно -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="scheduleWeekday" class="form-label">День тижня *</label>
+                        <select class="form-select" id="scheduleWeekday" name="weekday" required>
+                            <option value="">Оберіть день</option>
+                            <option value="1">Понеділок</option>
+                            <option value="2">Вівторок</option>
+                            <option value="3">Середа</option>
+                            <option value="4">Четвер</option>
+                            <option value="5">П'ятниця</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="scheduleTime" class="form-label">Час початку *</label>
+                        <input type="time" class="form-control" id="scheduleTime" name="startTime" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="scheduleActive" name="active" checked>
+                            <label class="form-check-label" for="scheduleActive">
+                                Активне заняття
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" onclick="saveSchedule()">Зберегти</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Students Modal -->
+<div class="modal fade" id="manageStudentsModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Управління учнями групи</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row h-100">
+                    <div class="col-md-6 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Доступні учні</h6>
+                            <input type="text" class="form-control form-control-sm w-50" 
+                                   id="searchAvailableStudents" placeholder="🔍 Пошук учнів..." 
+                                   onkeyup="searchStudents('available')">
+                        </div>
+                        <div class="border rounded p-3 flex-grow-1" style="overflow-y: auto; min-height: 500px;">
+                            <div id="availableStudentsList">
+                                <!-- Буде заповнено динамічно -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Записані учні</h6>
+                            <input type="text" class="form-control form-control-sm w-50" 
+                                   id="searchEnrolledStudents" placeholder="🔍 Пошук записаних..." 
+                                   onkeyup="searchStudents('enrolled')">
+                        </div>
+                        <div class="border rounded p-3 flex-grow-1" style="overflow-y: auto; min-height: 500px;">
+                            <div id="enrolledStudentsList">
+                                <!-- Буде заповнено динамічно -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="d-flex justify-content-between w-100">
+                    <div>
+                        <span class="badge bg-info me-2">Доступно: <span id="availableCount">0</span></span>
+                        <span class="badge bg-success">Записано: <span id="enrolledCount">0</span></span>
+                    </div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрити</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ВИПРАВЛЕННЯ ФІЛЬТРІВ - ГАРАНТОВАНА РОБОЧА ВЕРСІЯ -->
+<script>
+// ВИПРАВЛЕННЯ ФІЛЬТРІВ РОЗКЛАДУ - ГАРАНТОВАНА РОБОЧА ВЕРСІЯ
+// Цей код замінить проблемні частини admin.js
+
+// Глобальні змінні - оголошуємо тільки раз
+window.filtersData = {
+    schedules: [],
+    clubs: [],
+    teachers: [],
+    students: [],
+    enrollments: []
+};
+
+// Функція завантаження даних з гарантованою роботою
+async function loadFiltersData() {
+    console.log('🔄 [FIX] Завантаження даних для фільтрів...');
+    
+    try {
+        const API_BASE = window.location.origin + '/api';
+        
+        // Паралельне завантаження всіх потрібних даних
+        // 🔧 FIX: Завантажуємо ВСІ розклади (включно з неактивними) для фільтрації
+        const [schedules, clubs, teachers, students, enrollments] = await Promise.all([
+            fetch(`${API_BASE}/schedules?include_inactive=true`).then(r => r.json()),
+            fetch(`${API_BASE}/clubs`).then(r => r.json()),
+            fetch(`${API_BASE}/teachers`).then(r => r.json()),
+            fetch(`${API_BASE}/students`).then(r => r.json()),
+            fetch(`${API_BASE}/schedule-enrollments`).then(r => r.json())
+        ]);
+        
+        // 🔧 FIX: Додаємо підрахунок кількості учнів для кожного розкладу
+        schedules.forEach(schedule => {
+            schedule.enrolledCount = enrollments.filter(e => e.schedule_id === schedule.id).length;
+        });
+        
+        // Зберігаємо в глобальному об'єкті
+        window.filtersData.schedules = schedules;
+        window.filtersData.clubs = clubs;
+        window.filtersData.teachers = teachers;
+        window.filtersData.students = students;
+        window.filtersData.enrollments = enrollments;
+        
+        console.log('✅ [FIX] Дані завантажено:', {
+            schedules: schedules.length,
+            clubs: clubs.length,
+            teachers: teachers.length,
+            students: students.length,
+            enrollments: enrollments.length
+        });
+        
+        return true;
+        
+    } catch (error) {
+        console.error('❌ [FIX] Помилка завантаження:', error);
+        return false;
+    }
+}
+
+// Функція побудови фільтрів з гарантованою роботою
+function buildFiltersTable() {
+    console.log('🔨 [FIX] Побудова таблиці з фільтрами...');
+    
+    const tableHead = document.getElementById('schedulesTableHead');
+    const tableBody = document.getElementById('schedulesTableBody');
+    
+    if (!tableHead || !tableBody) {
+        console.error('❌ [FIX] Елементи таблиці не знайдені');
+        return false;
+    }
+    
+        // Генеруємо заголовки з фільтрами
+        tableHead.innerHTML = `
+            <tr>
+                <th>День тижня</th>
+                <th>Час</th>
+                <th>Гурток</th>
+                <th>Вчитель</th>
+                <th>Учні</th>
+                <th>Статус</th>
+                <th>Дії</th>
+            </tr>
+            <tr style="background: #f8f9fa;">
+                <td>
+                    <select class="form-select form-select-sm" id="filterDay" onchange="applyFilters()">
+                        <option value="">Всі дні</option>
+                        <option value="1">Понеділок</option>
+                        <option value="2">Вівторок</option>
+                        <option value="3">Середа</option>
+                        <option value="4">Четвер</option>
+                        <option value="5">П'ятниця</option>
+                    </select>
+                </td>
+                <td>
+                    <input class="form-control form-control-sm" id="filterTime" placeholder="Час" onkeyup="applyFilters()">
+                </td>
+                <td>
+                    <select class="form-select form-select-sm" id="filterClub" onchange="applyFilters()">
+                        <option value="">Всі гуртки</option>
+                    </select>
+                </td>
+                <td>
+                    <select class="form-select form-select-sm" id="filterTeacher" onchange="applyFilters()">
+                        <option value="">Всі вчителі</option>
+                    </select>
+                </td>
+                <td>
+                    <input class="form-control form-control-sm" id="filterStudentCount" placeholder="К-ть" onkeyup="applyFilters()">
+                </td>
+                <td>
+                    <select class="form-select form-select-sm" id="filterStatus" onchange="applyFilters()">
+                        <option value="">Всі статуси</option>
+                        <option value="true">Активний</option>
+                        <option value="false">Неактивний</option>
+                    </select>
+                </td>
+                <td></td>
+            </tr>
+        `;
+    
+    console.log('✅ [FIX] Заголовки з фільтрами створено');
+    return true;
+}
+
+// Функція заповнення фільтрів з гарантованою роботою
+function populateFilters() {
+    console.log('🔧 [FIX] Заповнення фільтрів...');
+    
+    const data = window.filtersData;
+    
+    if (!data.clubs.length || !data.teachers.length) {
+        console.warn('⚠️ [FIX] Дані для фільтрів не завантажені');
+        return false;
+    }
+    
+    // Заповнюємо фільтр гуртків
+    const clubFilter = document.getElementById('filterClub');
+    if (clubFilter) {
+        clubFilter.innerHTML = '<option value="">Всі гуртки</option>';
+        data.clubs.forEach(club => {
+            clubFilter.innerHTML += `<option value="${club.id}">${club.name}</option>`;
+        });
+        console.log(`✅ [FIX] Фільтр гуртків: ${data.clubs.length} варіантів`);
+    }
+    
+    // Заповнюємо фільтр вчителів
+    const teacherFilter = document.getElementById('filterTeacher');
+    if (teacherFilter) {
+        teacherFilter.innerHTML = '<option value="">Всі вчителі</option>';
+        data.teachers.forEach(teacher => {
+            teacherFilter.innerHTML += `<option value="${teacher.id}">${teacher.full_name}</option>`;
+        });
+        console.log(`✅ [FIX] Фільтр вчителів: ${data.teachers.length} варіантів`);
+    }
+    
+    return true;
+}
+
+// Функція відображення розкладів
+function displaySchedules(schedules = null) {
+    const tableBody = document.getElementById('schedulesTableBody');
+    if (!tableBody) return;
+    
+    const data = schedules || window.filtersData.schedules;
+    
+    if (!data.length) {
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center">Немає розкладів</td></tr>';
+        return;
+    }
+    
+    const weekdays = ['', 'Понеділок', 'Вівторок', 'Середа', 'Четвер', "П'ятниця"];
+    
+        let html = '';
+        data.slice(0, 50).forEach(schedule => { // Показуємо перші 50
+            const clubName = schedule.club?.name || 'Невідомий гурток';
+            const teacherName = schedule.teacher?.full_name || 'Невідомий вчитель';
+            const weekdayName = weekdays[schedule.weekday] || 'Невідомий день';
+            
+            html += `
+                <tr>
+                    <td>${weekdayName}</td>
+                    <td>${schedule.start_time}</td>
+                    <td>${clubName}</td>
+                    <td>${teacherName}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-info" 
+                                onclick="manageScheduleStudents && manageScheduleStudents(${schedule.id})" 
+                                title="Управління учнями">
+                            <i class="bi bi-people"></i> ${schedule.enrolledCount || 0}
+                        </button>
+                    </td>
+                    <td>${schedule.active ? '<span class="badge bg-success">Активний</span>' : '<span class="badge bg-secondary">Неактивний</span>'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editSchedule && editSchedule(${schedule.id})">Редагувати</button>
+                    </td>
+                </tr>
+            `;
+        });
+    
+    tableBody.innerHTML = html;
+    console.log(`📋 [FIX] Показано ${Math.min(50, data.length)} з ${data.length} розкладів`);
+}
+
+    // Функція фільтрації
+    function applyFilters() {
+        console.log('🔍 [FIX] Застосування фільтрів...');
+        
+        const dayFilter = document.getElementById('filterDay')?.value || '';
+        const timeFilter = document.getElementById('filterTime')?.value.toLowerCase() || '';
+        const clubFilter = document.getElementById('filterClub')?.value || '';
+        const teacherFilter = document.getElementById('filterTeacher')?.value || '';
+        const studentCountFilter = document.getElementById('filterStudentCount')?.value || '';
+        const statusFilter = document.getElementById('filterStatus')?.value || '';
+        
+        const filteredSchedules = window.filtersData.schedules.filter(schedule => {
+            // Фільтр по дню тижня
+            if (dayFilter && schedule.weekday.toString() !== dayFilter) return false;
+            
+            // Фільтр по часу
+            if (timeFilter && !schedule.start_time.toLowerCase().includes(timeFilter)) return false;
+            
+            // Фільтр по гуртку
+            if (clubFilter && schedule.club_id.toString() !== clubFilter) return false;
+            
+            // Фільтр по вчителю
+            if (teacherFilter && schedule.teacher_id.toString() !== teacherFilter) return false;
+            
+            // Фільтр по кількості учнів
+            if (studentCountFilter && !schedule.enrolledCount.toString().includes(studentCountFilter)) return false;
+            
+            // Фільтр по статусу
+            if (statusFilter && schedule.active.toString() !== statusFilter) return false;
+            
+            return true;
+        });
+        
+        console.log(`📊 [FIX] Відфільтровано: ${filteredSchedules.length} з ${window.filtersData.schedules.length}`);
+        displaySchedules(filteredSchedules);
+    }
+
+// Головна функція ініціалізації
+async function initializeFilters() {
+    console.log('🚀 [FIX] Ініціалізація фільтрів розкладу...');
+    
+    try {
+        // 1. Завантажуємо дані
+        const dataLoaded = await loadFiltersData();
+        if (!dataLoaded) {
+            throw new Error('Не вдалося завантажити дані');
+        }
+        
+        // 2. Будуємо таблицю
+        const tableBuilt = buildFiltersTable();
+        if (!tableBuilt) {
+            throw new Error('Не вдалося побудувати таблицю');
+        }
+        
+        // 3. Заповнюємо фільтри
+        const filtersPopulated = populateFilters();
+        if (!filtersPopulated) {
+            throw new Error('Не вдалося заповнити фільтри');
+        }
+        
+        // 4. Встановлюємо за замовчуванням фільтр "Активний"
+        const statusFilter = document.getElementById('filterStatus');
+        if (statusFilter) {
+            statusFilter.value = 'true'; // За замовчуванням показуємо тільки активні
+            console.log('📋 [FIX] За замовчуванням встановлено фільтр: Активні розклади');
+        }
+        
+        // 5. Показуємо дані з фільтром за замовчуванням
+        applyFilters(); // Замість displaySchedules() - щоб застосувався фільтр
+        
+            console.log('🎉 [FIX] Фільтри успішно ініціалізовано!');
+        
+    } catch (error) {
+        console.error('❌ [FIX] Помилка ініціалізації:', error);
+        
+        // Додаємо індикатор помилки
+        const indicator = document.createElement('div');
+        indicator.style.cssText = 'position:fixed;top:10px;right:10px;background:red;color:white;padding:10px;border-radius:5px;z-index:9999;';
+        indicator.innerHTML = `❌ Помилка: ${error.message}`;
+        document.body.appendChild(indicator);
+    }
+}
+
+// 🔥 КРИТИЧНО: Блокуємо старий код з admin.js
+window.scheduleFixApplied = true;
+
+// Автоматичний запуск після завантаження DOM
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        // Затримка щоб переконатися що ми запускаємося ПІСЛЯ admin.js
+        setTimeout(initializeFilters, 100);
+    });
+} else {
+    // DOM вже завантажений
+    setTimeout(initializeFilters, 100);
+}
+
+// 🔧 FIX: Забезпечуємо доступність функції manageScheduleStudents з admin.js
+window.manageScheduleStudents = window.manageScheduleStudents || function(scheduleId) {
+    console.log('👥 [FIX] Виклик manageScheduleStudents для розкладу:', scheduleId);
+    
+    // Відкриваємо модальне вікно управління учнями
+    const modal = new bootstrap.Modal(document.getElementById('manageStudentsModal'));
+    modal.show();
+    
+    // Викликаємо оригінальну функцію з admin.js якщо вона існує
+    if (typeof window.originalManageScheduleStudents === 'function') {
+        window.originalManageScheduleStudents(scheduleId);
+    } else {
+        console.warn('⚠️ [FIX] Функція manageScheduleStudents з admin.js не знайдена');
+        console.log('📋 [FIX] Спроба завантаження учнів для розкладу:', scheduleId);
+        
+        // Базова функціональність - просто показуємо модальне вікно
+        // Тут можна додати мінімальну логіку якщо потрібно
+    }
+};
+
+console.log('📝 [FIX] Скрипт виправлення фільтрів завантажено');
+console.log('👥 [FIX] Функція manageScheduleStudents доступна');
+</script>
+{% endblock %}

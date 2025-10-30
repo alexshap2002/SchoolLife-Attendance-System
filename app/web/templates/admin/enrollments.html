@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Управління записами учнів</h2>
+    <button type="button" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Додати запис
+    </button>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Учень</th>
+                        <th>Гурток</th>
+                        <th>Тип запису</th>
+                        <th>Вік</th>
+                        <th>Телефон</th>
+                        <th>Дата запису</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enrollment in enrollments %}
+                    <tr>
+                        <td>
+                            <strong>{{ enrollment.student.first_name }} {{ enrollment.student.last_name }}</strong>
+                            {% if enrollment.student.grade %}
+                                <br><small class="text-muted">{{ enrollment.student.grade }} клас</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ enrollment.club.name if enrollment.club else 'Не вказано' }}</td>
+                        <td>
+                            {% if enrollment.is_primary %}
+                                <span class="badge bg-success">Основний</span>
+                            {% else %}
+                                <span class="badge bg-info">Додатковий</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ enrollment.student.age or 'Не вказано' }}</td>
+                        <td>{{ enrollment.student.phone_child or 'Не вказано' }}</td>
+                        <td>{{ enrollment.created_at.strftime('%d.%m.%Y') }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">
+                            <i class="bi bi-person-plus"></i>
+                            <br>
+                            Записів ще немає
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Статистика записів</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Всього записів:</strong> {{ enrollments|length }}</p>
+                    <p><strong>Основних:</strong> {{ enrollments|selectattr('is_primary')|list|length }}</p>
+                    <p><strong>Додаткових:</strong> {{ enrollments|rejectattr('is_primary')|list|length }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Розподіл по гуртках</h5>
+                </div>
+                <div class="card-body">
+                    {% set clubs_count = {} %}
+                    {% for enrollment in enrollments %}
+                        {% set club_name = enrollment.club.name if enrollment.club else 'Не вказано' %}
+                        {% set _ = clubs_count.update({club_name: clubs_count.get(club_name, 0) + 1}) %}
+                    {% endfor %}
+                    
+                    {% for club_name, count in clubs_count.items() %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>{{ club_name }}</span>
+                            <span class="badge bg-primary">{{ count }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

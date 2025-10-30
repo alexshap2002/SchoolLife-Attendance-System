@@ -1,0 +1,866 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Додаємо відступ зверху -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>🤖 Додаткова автоматизація</h2>
+    <button type="button" class="btn btn-primary" onclick="openAddAutomationModal()">
+        <i class="bi bi-plus-circle"></i> Додати автоматизацію
+    </button>
+</div>
+
+<!-- Статистика -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">Активних автоматизацій</h5>
+                <h3 id="activeAutomationsCount" class="text-success">-</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">Вимкнених</h5>
+                <h3 id="disabledAutomationsCount" class="text-warning">-</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">Всього типів</h5>
+                <h3 id="totalTypesCount" class="text-info">15</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">Telegram адмінів</h5>
+                <h3 id="telegramAdminsCount" class="text-info">-</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Управління Telegram адміністраторами -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">📱 Telegram адміністратори</h5>
+        <button class="btn btn-outline-primary btn-sm" onclick="loadTelegramAdmins()">
+            <i class="bi bi-arrow-clockwise"></i> Оновити
+        </button>
+    </div>
+    <div class="card-body">
+        <div id="telegramAdminsLoading" class="text-center py-3">
+            <div class="spinner-border spinner-border-sm" role="status">
+                <span class="visually-hidden">Завантаження...</span>
+            </div>
+            <span class="ms-2">Завантаження адміністраторів...</span>
+        </div>
+        
+        <div id="telegramAdminsContent" style="display: none;">
+            <div class="row" id="telegramAdminsRow">
+                <!-- Адміністратори будуть завантажені динамічно -->
+            </div>
+        </div>
+        
+        <div id="noTelegramAdmins" style="display: none;" class="text-center py-3">
+            <i class="bi bi-person-x text-muted"></i>
+            <span class="text-muted ms-2">Немає налаштованих Telegram адміністраторів</span>
+        </div>
+    </div>
+</div>
+
+<!-- Фільтри -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <label for="typeFilter" class="form-label">Тип автоматизації:</label>
+                <select class="form-select" id="typeFilter">
+                    <option value="">Всі типи</option>
+                    <option value="BIRTHDAYS">🎂 Дні народження</option>
+                    <option value="LESSON_REMINDER_30">⏰ Нагадування за 30 хв</option>
+                    <option value="LESSON_REMINDER_10">🔔 Нагадування за 10 хв</option>
+                    <option value="DAILY_REPORT">📊 Щоденний звіт</option>
+                    <option value="WEEKLY_ATTENDANCE">📈 Тижнева відвідуваність</option>
+                    <option value="LOW_ATTENDANCE_ALERT">⚠️ Низька відвідуваність</option>
+                    <option value="MISSING_ATTENDANCE">❌ Не заповнена відвідуваність</option>
+                    <option value="TEACHER_WORKLOAD">👨‍🏫 Навантаження вчителів</option>
+                    <option value="STUDENT_PROGRESS">📚 Прогрес студентів</option>
+                    <option value="PAYROLL_REMINDER">💰 Нагадування про зарплати</option>
+                    <option value="EQUIPMENT_CHECK">🔧 Перевірка обладнання</option>
+                    <option value="PARENT_NOTIFICATIONS">👪 Повідомлення батькам</option>
+                    <option value="HOLIDAY_REMINDERS">🎉 Нагадування про свята</option>
+                    <option value="BACKUP_REMINDER">💾 Резервні копії</option>
+                    <option value="SYSTEM_HEALTH">🏥 Стан системи</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="statusFilter" class="form-label">Статус:</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">Всі статуси</option>
+                    <option value="enabled">Увімкнені</option>
+                    <option value="disabled">Вимкнені</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-outline-secondary me-2" onclick="loadAutomations()">
+                    <i class="bi bi-arrow-clockwise"></i> Оновити
+                </button>
+                <button class="btn btn-outline-info" onclick="showAutomationHelp()">
+                    <i class="bi bi-question-circle"></i> Довідка
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Список автоматизацій -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">🤖 Налаштовані автоматизації</h5>
+    </div>
+    <div class="card-body">
+        <div id="automationsLoading" class="text-center py-4">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Завантаження...</span>
+            </div>
+            <p class="mt-2">Завантаження автоматизацій...</p>
+        </div>
+        
+        <div id="automationsTable" style="display: none;">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Назва</th>
+                            <th>Тип</th>
+                            <th>Розклад</th>
+                            <th>Адміністратор</th>
+                            <th>Статус</th>
+                            <th>Остання відправка</th>
+                            <th>Дії</th>
+                        </tr>
+                    </thead>
+                    <tbody id="automationsTableBody">
+                        <!-- Дані завантажуються динамічно -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div id="noAutomations" style="display: none;" class="text-center py-4">
+            <i class="bi bi-robot display-1 text-muted"></i>
+            <h4 class="text-muted">Немає налаштованих автоматизацій</h4>
+            <p class="text-muted">Додайте першу автоматизацію для отримання повідомлень</p>
+            <button class="btn btn-primary" onclick="openAddAutomationModal()">
+                <i class="bi bi-plus-circle"></i> Додати автоматизацію
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно додавання/редагування автоматизації -->
+<div class="modal fade" id="automationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="automationModalTitle">Додати автоматизацію</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="automationForm">
+                    <input type="hidden" id="automationId" value="">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="automationName" class="form-label">Назва автоматизації *</label>
+                                <input type="text" class="form-control" id="automationName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="automationType" class="form-label">Тип автоматизації *</label>
+                                <select class="form-select" id="automationType" required>
+                                    <option value="">Оберіть тип</option>
+                                    <!-- Опції завантажуються динамічно -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="automationDescription" class="form-label">Опис</label>
+                        <textarea class="form-control" id="automationDescription" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="adminChatId" class="form-label">Telegram Chat ID адміністратора *</label>
+                                <input type="number" class="form-control" id="adminChatId" required>
+                                <div class="form-text">ID чату для отримання повідомлень</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="form-check form-switch mt-4">
+                                    <input class="form-check-input" type="checkbox" id="isEnabled" checked>
+                                    <label class="form-check-label" for="isEnabled">
+                                        Увімкнена автоматизація
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Налаштування часу (показується для певних типів) -->
+                    <div id="timeSettings" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="triggerTime" class="form-label">
+                                        <i class="bi bi-clock"></i> Час відправки
+                                    </label>
+                                    <input type="time" class="form-control" id="triggerTime">
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle"></i> 
+                                        Можна змінити час відправки для кожної автоматизації індивідуально
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="daySettings" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="triggerDay" class="form-label">День тижня</label>
+                                    <select class="form-select" id="triggerDay">
+                                        <option value="">Не вказано</option>
+                                        <option value="0">Понеділок</option>
+                                        <option value="1">Вівторок</option>
+                                        <option value="2">Середа</option>
+                                        <option value="3">Четвер</option>
+                                        <option value="4">П'ятниця</option>
+                                        <option value="5">Субота</option>
+                                        <option value="6">Неділя</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Додаткові налаштування -->
+                    <div id="additionalSettings">
+                        <!-- Динамічні налаштування залежно від типу -->
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" onclick="saveAutomation()">
+                    <i class="bi bi-check-lg"></i> Зберегти
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно логів -->
+<div class="modal fade" id="logsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">📊 Логи виконання автоматизації</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="logsContent">
+                    <!-- Логи завантажуються динамічно -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно довідки -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">🤖 Довідка по автоматизаціям</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>📱 Типи автоматизацій:</h6>
+                <ul>
+                    <li><strong>Відсутні студенти</strong> - Повідомляє про студентів, які не з'явились на заняття з контактами батьків</li>
+                    <li><strong>Дні народження</strong> - Нагадує про дні народження студентів, які мають уроки сьогодні (12:00)</li>
+                    <li><strong>Тижневий звіт</strong> - Відправляє звіт по всім гурткам та вчителям у п'ятницю (19:00)</li>
+                    <li><strong>Щоденне підсумування</strong> - Підсумок дня з проведеними уроками та відвідуваністю</li>
+                    <li><strong>Низька відвідуваність</strong> - Повідомляє про гуртки з відвідуваністю менше 70%</li>
+                    <li><strong>Прострочені зарплати</strong> - Нагадує про непроведені нарахування зарплат</li>
+                </ul>
+                
+                <h6>⚙️ Налаштування:</h6>
+                <ul>
+                    <li><strong>Telegram Chat ID</strong> - отримайте у боті @userinfobot</li>
+                    <li><strong>Час відправки</strong> - у форматі ГГ:ХХ (24-годинний формат)</li>
+                    <li><strong>День тижня</strong> - для тижневих звітів (0 = Понеділок, 6 = Неділя)</li>
+                </ul>
+                
+                <h6>🔧 Керування:</h6>
+                <ul>
+                    <li>Використовуйте перемикач для увімкнення/вимкнення автоматизації</li>
+                    <li>Переглядайте логи для діагностики проблем</li>
+                    <li>Редагуйте налаштування за потребою</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Глобальні змінні
+let currentAutomations = [];
+let automationTypes = [];
+
+// Завантаження при старті сторінки
+document.addEventListener('DOMContentLoaded', function() {
+    loadAutomationTypes();
+    loadAutomations();
+    loadTelegramAdmins();  // Додаємо завантаження адміністраторів
+    
+    // Обробники фільтрів
+    document.getElementById('typeFilter').addEventListener('change', loadAutomations);
+    document.getElementById('statusFilter').addEventListener('change', loadAutomations);
+});
+
+// Завантаження типів автоматизацій
+async function loadAutomationTypes() {
+    try {
+        const response = await fetch('/api/automations/types/available');
+        const data = await response.json();
+        automationTypes = data.automation_types;
+        
+        // Заповнюємо select у модалі
+        const select = document.getElementById('automationType');
+        select.innerHTML = '<option value="">Оберіть тип</option>';
+        
+        automationTypes.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.type;
+            option.textContent = type.name;
+            option.setAttribute('data-description', type.description);
+            option.setAttribute('data-requires-time', type.requires_time);
+            option.setAttribute('data-requires-day', type.requires_day);
+            select.appendChild(option);
+        });
+        
+        // Обробник зміни типу
+        select.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            updateTypeSettings(selectedOption);
+        });
+        
+    } catch (error) {
+        console.error('Помилка завантаження типів автоматизацій:', error);
+    }
+}
+
+// Оновлення налаштувань в залежності від типу
+function updateTypeSettings(selectedOption) {
+    const timeSettings = document.getElementById('timeSettings');
+    const daySettings = document.getElementById('daySettings');
+    
+    if (selectedOption.value) {
+        const requiresTime = selectedOption.getAttribute('data-requires-time') === 'true';
+        const requiresDay = selectedOption.getAttribute('data-requires-day') === 'true';
+        
+        if (requiresTime) {
+            timeSettings.style.display = 'block';
+            
+            // Встановлюємо дефолтні значення з типів автоматизацій
+            const triggerTimeInput = document.getElementById('triggerTime');
+            const defaultTime = selectedOption.getAttribute('data-default-time');
+            const defaultDay = selectedOption.getAttribute('data-default-day');
+            
+            if (defaultTime && !triggerTimeInput.value) {
+                triggerTimeInput.value = defaultTime.substring(0, 5); // HH:MM
+            }
+            
+            if (defaultDay && requiresDay) {
+                document.getElementById('triggerDay').value = defaultDay;
+            }
+            
+            if (requiresDay) {
+                daySettings.style.display = 'block';
+            } else {
+                daySettings.style.display = 'none';
+                document.getElementById('triggerDay').value = '';
+            }
+        } else {
+            timeSettings.style.display = 'none';
+            document.getElementById('triggerTime').value = '';
+            document.getElementById('triggerDay').value = '';
+        }
+    } else {
+        timeSettings.style.display = 'none';
+    }
+}
+
+// Завантаження автоматизацій
+async function loadAutomations() {
+    try {
+        document.getElementById('automationsLoading').style.display = 'block';
+        document.getElementById('automationsTable').style.display = 'none';
+        document.getElementById('noAutomations').style.display = 'none';
+        
+        const typeFilter = document.getElementById('typeFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+        
+        let url = '/api/automations';
+        const params = new URLSearchParams();
+        
+        if (statusFilter === 'enabled') {
+            params.append('enabled_only', 'true');
+        }
+        
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+        
+        const response = await fetch(url);
+        const automations = await response.json();
+        
+        // Фільтруємо по типу на клієнті
+        currentAutomations = automations.filter(automation => {
+            if (typeFilter && automation.automation_type !== typeFilter) {
+                return false;
+            }
+            if (statusFilter === 'enabled' && !automation.is_enabled) {
+                return false;
+            }
+            if (statusFilter === 'disabled' && automation.is_enabled) {
+                return false;
+            }
+            return true;
+        });
+        
+        displayAutomations(currentAutomations);
+        updateStatistics(automations);
+        
+    } catch (error) {
+        console.error('Помилка завантаження автоматизацій:', error);
+        document.getElementById('automationsLoading').style.display = 'none';
+        document.getElementById('noAutomations').style.display = 'block';
+    }
+}
+
+// Відображення автоматизацій
+function displayAutomations(automations) {
+    document.getElementById('automationsLoading').style.display = 'none';
+    
+    if (automations.length === 0) {
+        document.getElementById('noAutomations').style.display = 'block';
+        document.getElementById('automationsTable').style.display = 'none';
+        return;
+    }
+    
+    document.getElementById('automationsTable').style.display = 'block';
+    document.getElementById('noAutomations').style.display = 'none';
+    
+    const tbody = document.getElementById('automationsTableBody');
+    tbody.innerHTML = '';
+    
+    automations.forEach(automation => {
+        const row = createAutomationRow(automation);
+        tbody.appendChild(row);
+    });
+}
+
+// Створення рядка автоматизації
+function createAutomationRow(automation) {
+    const row = document.createElement('tr');
+    
+    // Назва та опис
+    const nameCell = document.createElement('td');
+    nameCell.innerHTML = `
+        <strong>${automation.name}</strong>
+        ${automation.description ? `<br><small class="text-muted">${automation.description}</small>` : ''}
+    `;
+    
+    // Тип
+    const typeCell = document.createElement('td');
+    const type = automationTypes.find(t => t.type === automation.automation_type);
+    typeCell.innerHTML = `
+        <span class="badge bg-info">${type ? type.name : automation.automation_type}</span>
+    `;
+    
+    // Розклад
+    const scheduleCell = document.createElement('td');
+    let scheduleText = '-';
+    if (automation.trigger_time) {
+        scheduleText = automation.trigger_time.substring(0, 5); // HH:MM
+        if (automation.trigger_day !== null) {
+            const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
+            scheduleText += ` (${days[automation.trigger_day]})`;
+        }
+    }
+    scheduleCell.textContent = scheduleText;
+    
+    // Статус
+    const statusCell = document.createElement('td');
+    statusCell.innerHTML = automation.is_enabled 
+        ? '<span class="badge bg-success">Увімкнено</span>'
+        : '<span class="badge bg-secondary">Вимкнено</span>';
+    
+    // Остання відправка
+    const lastTriggeredCell = document.createElement('td');
+    if (automation.last_triggered) {
+        const date = new Date(automation.last_triggered);
+        lastTriggeredCell.innerHTML = `
+            <small>${date.toLocaleDateString('uk-UA')}<br>${date.toLocaleTimeString('uk-UA', {hour: '2-digit', minute: '2-digit'})}</small>
+        `;
+    } else {
+        lastTriggeredCell.innerHTML = '<small class="text-muted">Ніколи</small>';
+    }
+    
+    // Дії
+    const actionsCell = document.createElement('td');
+    actionsCell.innerHTML = `
+        <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-primary" onclick="editAutomation(${automation.id})" title="Редагувати">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-outline-${automation.is_enabled ? 'warning' : 'success'}" 
+                    onclick="toggleAutomation(${automation.id})" 
+                    title="${automation.is_enabled ? 'Вимкнути' : 'Увімкнути'}">
+                <i class="bi bi-${automation.is_enabled ? 'pause' : 'play'}"></i>
+            </button>
+            <button class="btn btn-outline-info" onclick="showLogs(${automation.id})" title="Логи">
+                <i class="bi bi-list-ul"></i>
+            </button>
+            <button class="btn btn-outline-danger" onclick="deleteAutomation(${automation.id})" title="Видалити">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    `;
+    
+    row.appendChild(nameCell);
+    row.appendChild(typeCell);
+    row.appendChild(scheduleCell);
+    row.appendChild(statusCell);
+    row.appendChild(lastTriggeredCell);
+    row.appendChild(actionsCell);
+    
+    return row;
+}
+
+// Оновлення статистики
+function updateStatistics(automations) {
+    const activeCount = automations.filter(a => a.is_enabled).length;
+    const disabledCount = automations.filter(a => !a.is_enabled).length;
+    
+    document.getElementById('activeAutomationsCount').textContent = activeCount;
+    document.getElementById('disabledAutomationsCount').textContent = disabledCount;
+    document.getElementById('todayExecutionsCount').textContent = '-'; // TODO: розрахувати з логів
+}
+
+// Відкриття модалі додавання
+function openAddAutomationModal() {
+    document.getElementById('automationModalTitle').textContent = 'Додати автоматизацію';
+    document.getElementById('automationForm').reset();
+    document.getElementById('automationId').value = '';
+    document.getElementById('isEnabled').checked = true;
+    document.getElementById('timeSettings').style.display = 'none';
+    document.getElementById('daySettings').style.display = 'none';
+    
+    const modal = new bootstrap.Modal(document.getElementById('automationModal'));
+    modal.show();
+}
+
+// Редагування автоматизації
+async function editAutomation(id) {
+    try {
+        const response = await fetch(`/api/automations/${id}`);
+        const automation = await response.json();
+        
+        document.getElementById('automationModalTitle').textContent = 'Редагувати автоматизацію';
+        document.getElementById('automationId').value = automation.id;
+        document.getElementById('automationName').value = automation.name;
+        document.getElementById('automationType').value = automation.automation_type;
+        document.getElementById('automationDescription').value = automation.description || '';
+        document.getElementById('adminChatId').value = automation.admin_chat_id;
+        document.getElementById('isEnabled').checked = automation.is_enabled;
+        
+        if (automation.trigger_time) {
+            document.getElementById('triggerTime').value = automation.trigger_time.substring(0, 5);
+        }
+        if (automation.trigger_day !== null) {
+            document.getElementById('triggerDay').value = automation.trigger_day;
+        }
+        
+        // Оновлюємо налаштування типу
+        const selectedOption = document.getElementById('automationType').options[document.getElementById('automationType').selectedIndex];
+        updateTypeSettings(selectedOption);
+        
+        const modal = new bootstrap.Modal(document.getElementById('automationModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Помилка завантаження автоматизації:', error);
+        alert('Помилка завантаження даних автоматизації');
+    }
+}
+
+// Збереження автоматизації
+async function saveAutomation() {
+    try {
+        const formData = {
+            name: document.getElementById('automationName').value,
+            description: document.getElementById('automationDescription').value,
+            automation_type: document.getElementById('automationType').value,
+            admin_chat_id: parseInt(document.getElementById('adminChatId').value),
+            is_enabled: document.getElementById('isEnabled').checked
+        };
+        
+        const triggerTime = document.getElementById('triggerTime').value;
+        if (triggerTime) {
+            formData.trigger_time = triggerTime + ':00';
+        }
+        
+        const triggerDay = document.getElementById('triggerDay').value;
+        if (triggerDay !== '') {
+            formData.trigger_day = parseInt(triggerDay);
+        }
+        
+        const automationId = document.getElementById('automationId').value;
+        let url = '/api/automations';
+        let method = 'POST';
+        
+        if (automationId) {
+            url += `/${automationId}`;
+            method = 'PUT';
+        }
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        if (response.ok) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('automationModal'));
+            modal.hide();
+            loadAutomations();
+        } else {
+            const error = await response.json();
+            alert('Помилка збереження: ' + (error.detail || 'Невідома помилка'));
+        }
+        
+    } catch (error) {
+        console.error('Помилка збереження автоматизації:', error);
+        alert('Помилка збереження автоматизації');
+    }
+}
+
+// Перемикання статусу автоматизації
+async function toggleAutomation(id) {
+    try {
+        const response = await fetch(`/api/automations/${id}/toggle`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            loadAutomations();
+        } else {
+            alert('Помилка зміни статусу автоматизації');
+        }
+        
+    } catch (error) {
+        console.error('Помилка перемикання автоматизації:', error);
+        alert('Помилка зміни статусу');
+    }
+}
+
+// Видалення автоматизації
+async function deleteAutomation(id) {
+    if (!confirm('Ви впевнені, що хочете видалити цю автоматизацію?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/automations/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadAutomations();
+        } else {
+            alert('Помилка видалення автоматизації');
+        }
+        
+    } catch (error) {
+        console.error('Помилка видалення автоматизації:', error);
+        alert('Помилка видалення');
+    }
+}
+
+// Показ логів
+async function showLogs(id) {
+    try {
+        const response = await fetch(`/api/automations/${id}/logs`);
+        const logs = await response.json();
+        
+        const logsContent = document.getElementById('logsContent');
+        
+        if (logs.length === 0) {
+            logsContent.innerHTML = '<p class="text-muted text-center">Немає логів виконання</p>';
+        } else {
+            let html = '<div class="table-responsive"><table class="table table-sm">';
+            html += '<thead><tr><th>Час</th><th>Статус</th><th>Повідомлення</th><th>Метрики</th></tr></thead><tbody>';
+            
+            logs.forEach(log => {
+                const date = new Date(log.triggered_at);
+                const statusBadge = log.status === 'SUCCESS' 
+                    ? '<span class="badge bg-success">Успіх</span>'
+                    : '<span class="badge bg-danger">Помилка</span>';
+                
+                const metrics = [];
+                if (log.students_count) metrics.push(`👥 ${log.students_count}`);
+                if (log.clubs_count) metrics.push(`🎯 ${log.clubs_count}`);
+                if (log.execution_time_ms) metrics.push(`⏱️ ${log.execution_time_ms}ms`);
+                
+                html += `
+                    <tr>
+                        <td><small>${date.toLocaleString('uk-UA')}</small></td>
+                        <td>${statusBadge}</td>
+                        <td><small>${log.message || '-'}</small></td>
+                        <td><small>${metrics.join(' ')}</small></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            logsContent.innerHTML = html;
+        }
+        
+        const modal = new bootstrap.Modal(document.getElementById('logsModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Помилка завантаження логів:', error);
+        alert('Помилка завантаження логів');
+    }
+}
+
+// Завантаження Telegram адміністраторів
+async function loadTelegramAdmins() {
+    try {
+        document.getElementById('telegramAdminsLoading').style.display = 'block';
+        document.getElementById('telegramAdminsContent').style.display = 'none';
+        document.getElementById('noTelegramAdmins').style.display = 'none';
+        
+        const response = await fetch('/api/automations/admins');
+        if (!response.ok) {
+            throw new Error('Помилка завантаження адміністраторів');
+        }
+        
+        const data = await response.json();
+        const admins = data.admins || [];
+        
+        document.getElementById('telegramAdminsLoading').style.display = 'none';
+        
+        if (admins.length === 0) {
+            document.getElementById('noTelegramAdmins').style.display = 'block';
+            document.getElementById('telegramAdminsCount').textContent = '0';
+        } else {
+            document.getElementById('telegramAdminsContent').style.display = 'block';
+            displayTelegramAdmins(admins);
+            document.getElementById('telegramAdminsCount').textContent = admins.length;
+        }
+        
+    } catch (error) {
+        console.error('Помилка завантаження Telegram адміністраторів:', error);
+        document.getElementById('telegramAdminsLoading').style.display = 'none';
+        document.getElementById('noTelegramAdmins').style.display = 'block';
+        document.getElementById('telegramAdminsCount').textContent = '0';
+    }
+}
+
+// Відображення Telegram адміністраторів
+function displayTelegramAdmins(admins) {
+    const row = document.getElementById('telegramAdminsRow');
+    row.innerHTML = '';
+    
+    admins.forEach(admin => {
+        const col = document.createElement('div');
+        col.className = 'col-md-6 mb-3';
+        
+        col.innerHTML = `
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="card-title mb-1">
+                                <i class="bi bi-person-circle text-primary"></i> 
+                                ${admin.name}
+                            </h6>
+                            <small class="text-muted">ID: ${admin.chat_id}</small>
+                            ${admin.username ? `<br><small class="text-muted">@${admin.username}</small>` : ''}
+                        </div>
+                        <div class="text-end">
+                            <span class="badge ${admin.is_teacher ? 'bg-success' : 'bg-primary'}">
+                                ${admin.is_teacher ? 'Вчитель' : 'Адмін'}
+                            </span>
+                        </div>
+                    </div>
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-robot"></i> 
+                            Автоматизацій: <strong>${admin.automations_count}</strong>
+                        </small>
+                        <button class="btn btn-outline-primary btn-sm" 
+                                onclick="createAutomationForAdmin(${admin.chat_id})" 
+                                title="Додати автоматизацію для цього адміністратора">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        row.appendChild(col);
+    });
+}
+
+// Створення автоматизації для конкретного адміністратора
+function createAutomationForAdmin(chatId) {
+    // Відкриваємо модальне вікно додавання автоматизації
+    openAddAutomationModal();
+    
+    // Автоматично встановлюємо chat_id в формі
+    setTimeout(() => {
+        const chatIdInput = document.getElementById('adminChatId');
+        if (chatIdInput) {
+            chatIdInput.value = chatId;
+        }
+    }, 100);
+}
+
+// Показ довідки
+function showAutomationHelp() {
+    const modal = new bootstrap.Modal(document.getElementById('helpModal'));
+    modal.show();
+}
+</script>
+
+{% endblock %}

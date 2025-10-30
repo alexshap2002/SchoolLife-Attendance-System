@@ -1,0 +1,756 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* Стилі учнів в стилі інших таблиць */
+#studentsTable {
+    margin-top: 20px;
+}
+
+/* STICKY COLUMNS - Фіксовані стовпці "Ім'я" та "Прізвище" */
+.table-responsive {
+    position: relative;
+}
+
+/* Фіксація першого стовпця (Ім'я) */
+#studentsTable th:nth-child(1), 
+#studentsTable td:nth-child(1) { 
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background-color: #ffffff;
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* тінь справа */
+    border-right: 1px solid #dee2e6; /* легка межа */
+}
+
+/* Фіксація другого стовпця (Прізвище) */
+#studentsTable th:nth-child(2), 
+#studentsTable td:nth-child(2) { 
+    position: sticky;
+    left: 120px; /* зміщення на ширину першого стовпця */
+    z-index: 10;
+    background-color: #ffffff;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1); /* тінь справа */
+    border-right: 2px solid #007bff; /* синя межа для кращої видимості */
+}
+
+/* Заголовки sticky стовпців мають вищий z-index */
+#studentsTable thead th:nth-child(1),
+#studentsTable thead th:nth-child(2) {
+    z-index: 11;
+    background-color: #f8f9fa; /* трохи сірий фон для заголовків */
+}
+
+/* Фільтри в sticky стовпцях */
+#studentsTable .filter-row td:nth-child(1),
+#studentsTable .filter-row td:nth-child(2) {
+    background-color: #f8f9fa;
+    z-index: 10;
+}
+
+/* Специфічні розміри для інших колонок */
+#studentsTable th:nth-child(3), #studentsTable td:nth-child(3) { min-width: 140px; } /* День народження */
+#studentsTable th:nth-child(4), #studentsTable td:nth-child(4) { min-width: 80px; }  /* Вік */
+#studentsTable th:nth-child(5), #studentsTable td:nth-child(5) { min-width: 80px; }  /* Клас */
+#studentsTable th:nth-child(6), #studentsTable td:nth-child(6) { min-width: 140px; } /* Телефон дитини */
+#studentsTable th:nth-child(7), #studentsTable td:nth-child(7) { min-width: 180px; } /* ПІБ матері */
+#studentsTable th:nth-child(8), #studentsTable td:nth-child(8) { min-width: 140px; } /* Телефон матері */
+#studentsTable th:nth-child(9), #studentsTable td:nth-child(9) { min-width: 180px; } /* ПІБ батька */
+#studentsTable th:nth-child(10), #studentsTable td:nth-child(10) { min-width: 140px; } /* Телефон батька */
+
+/* Заголовки без яскравих кольорів */
+#studentsTable thead th {
+    white-space: nowrap;
+    padding: 12px 8px;
+}
+
+/* Фільтри компактні */
+#studentsTable .filter-row td {
+    padding: 8px 6px;
+}
+
+#studentsTable .filter-input,
+#studentsTable .filter-select {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    min-width: 90px;
+}
+
+/* Статуси гуртків - центрування вже є в базових стилях */
+#studentsTable .club-status {
+    font-size: 1.1rem;
+}
+
+/* Кнопки дій */
+#studentsTable .btn-group .btn {
+    margin: 0 1px;
+    padding: 4px 8px;
+}
+
+/* Додаткові стилі для кращого відображення sticky стовпців */
+#studentsTable tbody tr:hover td:nth-child(1),
+#studentsTable tbody tr:hover td:nth-child(2) {
+    background-color: #f1f3f4 !important; /* світло-сірий при hover */
+}
+
+/* Обрізка тексту в sticky стовпцях якщо занадто довгий */
+#studentsTable td:nth-child(1),
+#studentsTable td:nth-child(2) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 8px 6px;
+    font-weight: 500; /* трохи жирніший текст для кращої видимості */
+}
+
+/* Підказка при наведенні на обрізаний текст */
+#studentsTable td:nth-child(1)[title],
+#studentsTable td:nth-child(2)[title] {
+    cursor: help;
+}
+
+/* Візуальний індикатор що стовпці зафіксовані */
+#studentsTable th:nth-child(1):after {
+    content: " 📌";
+    font-size: 0.8em;
+    opacity: 0.6;
+}
+
+#studentsTable th:nth-child(2):after {
+    content: " 📌";
+    font-size: 0.8em;
+    opacity: 0.6;
+}
+
+/* STICKY SCROLLBAR - Плаваючий горизонтальний скролбар */
+.sticky-scrollbar-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 25px;
+    padding: 10px 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    max-width: 80vw;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sticky-scrollbar-container.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.sticky-scrollbar {
+    width: 300px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    position: relative;
+    cursor: pointer;
+}
+
+.sticky-scrollbar-thumb {
+    height: 100%;
+    background: #007bff;
+    border-radius: 4px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 20px;
+    transition: background-color 0.2s ease;
+}
+
+.sticky-scrollbar-thumb:hover {
+    background: #0056b3;
+}
+
+.sticky-scrollbar-label {
+    color: white;
+    font-size: 0.75rem;
+    margin-bottom: 5px;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Додаткове покращення для основного скролбара */
+.table-responsive::-webkit-scrollbar {
+    height: 12px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #007bff;
+    border-radius: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #0056b3;
+}
+
+/* Responsive дизайн для sticky scrollbar */
+@media (max-width: 768px) {
+    .sticky-scrollbar-container {
+        bottom: 10px;
+        padding: 8px 15px;
+        max-width: 90vw;
+    }
+    
+    .sticky-scrollbar {
+        width: 250px;
+    }
+    
+    .sticky-scrollbar-label {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .sticky-scrollbar {
+        width: 200px;
+    }
+    
+    .sticky-scrollbar-container {
+        padding: 6px 12px;
+    }
+}
+
+/* Додаткова індикація що scrollbar активний */
+.sticky-scrollbar-container.visible {
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateX(-50%) translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+</style>
+
+<!-- Додаємо відступ зверху замість подвійних заголовків -->
+<div class="mt-4 pt-3"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>👥 Управління учнями</h2>
+        <small class="text-muted">
+            📌 Стовпці "Ім'я" та "Прізвище" зафіксовані при прокручуванні
+        </small>
+    </div>
+    <div class="btn-group" role="group">
+        <!-- Кнопка імпорту з випадаючим меню -->
+        <div class="dropdown">
+            <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-cloud-upload"></i> Імпорт учнів
+            </button>
+            <ul class="dropdown-menu">
+                <li>
+                    <a class="dropdown-item" href="#" onclick="downloadStudentsTemplate()">
+                        <i class="bi bi-download"></i> Скачати шаблон Excel
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#importStudentsModal">
+                        <i class="bi bi-cloud-upload"></i> Завантажити список учнів
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item" href="#" onclick="exportStudentsExcel()">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Експорт в Excel (повна інформація)
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <!-- Звичайна кнопка додавання -->
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+            <i class="bi bi-plus-circle"></i> Додати учня
+        </button>
+        <!-- Кнопка повної інформації -->
+        <button type="button" class="btn btn-outline-info" onclick="showFullInfoHelp()">
+            <i class="bi bi-person-lines-fill"></i> Повна інформація
+        </button>
+    </div>
+</div>
+
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive" id="studentsTableContainer">
+            <table class="table table-hover" id="studentsTable">
+                <thead id="studentsTableHead">
+                    <!-- Заголовки будуть створені динамічно через JavaScript -->
+                </thead>
+                <tbody id="studentsTableBody">
+                    <!-- Дані будуть завантажені через JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Student Modal -->
+<div class="modal fade" id="addStudentModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Додати нового учня</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addStudentForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="firstName" class="form-label">Ім'я *</label>
+                                <input type="text" class="form-control" id="firstName" name="firstName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="lastName" class="form-label">Прізвище *</label>
+                                <input type="text" class="form-control" id="lastName" name="lastName" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="birthDate" class="form-label">День народження</label>
+                                <input type="date" class="form-control" id="birthDate" name="birthDate">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="age" class="form-label">Вік</label>
+                                <input type="number" class="form-control" id="age" name="age" min="5" max="18">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="grade" class="form-label">Клас</label>
+                                <input type="text" class="form-control" id="grade" name="grade">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phoneChild" class="form-label">Телефон дитини</label>
+                                <input type="tel" class="form-control" id="phoneChild" name="phoneChild" 
+                                       pattern="[+]?[0-9]{10,15}" title="Введіть номер телефону (мінімум 10 цифр)" 
+                                       placeholder="+380501234567">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="location" class="form-label">Місце проживання</label>
+                                <input type="text" class="form-control" id="location" name="location">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Адреса проживання</label>
+                        <textarea class="form-control" id="address" name="address" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="parentName" class="form-label">ПІБ батьків</label>
+                        <input type="text" class="form-control" id="parentName" name="parentName">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="fatherName" class="form-label">ПІБ батька</label>
+                                <input type="text" class="form-control" id="fatherName" name="fatherName">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="motherName" class="form-label">ПІБ матері</label>
+                                <input type="text" class="form-control" id="motherName" name="motherName">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phoneMother" class="form-label">Телефон матері</label>
+                                <input type="tel" class="form-control" id="phoneMother" name="phoneMother"
+                                       pattern="[+]?[0-9]{10,15}" title="Введіть номер телефону (мінімум 10 цифр)" 
+                                       placeholder="+380501234567">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phoneFather" class="form-label">Телефон батька</label>
+                                <input type="tel" class="form-control" id="phoneFather" name="phoneFather"
+                                       pattern="[+]?[0-9]{10,15}" title="Введіть номер телефону (мінімум 10 цифр)" 
+                                       placeholder="+380501234567">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="settlementType" class="form-label">Тип населеного пункту</label>
+                                <select class="form-control" id="settlementType" name="settlementType">
+                                    <option value="">Оберіть тип</option>
+                                    <option value="Село">Село</option>
+                                    <option value="СМТ">СМТ</option>
+                                    <option value="Місто">Місто</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="benefitOther" class="form-label">Інші пільги та примітки</label>
+                                <input type="text" class="form-control" id="benefitOther" name="benefitOther">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Секція пільг -->
+                    <div class="mb-3">
+                        <label class="form-label">Категорії вразливості та пільги</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="benefitLowIncome" name="benefitLowIncome">
+                                    <label class="form-check-label" for="benefitLowIncome">
+                                        Малозабезпечені
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="benefitLargeFamily" name="benefitLargeFamily">
+                                    <label class="form-check-label" for="benefitLargeFamily">
+                                        Багатодітні
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="benefitMilitaryFamily" name="benefitMilitaryFamily">
+                                    <label class="form-check-label" for="benefitMilitaryFamily">
+                                        Сім'я ЗСУ
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="benefitInternallyDisplaced" name="benefitInternallyDisplaced">
+                                    <label class="form-check-label" for="benefitInternallyDisplaced">
+                                        ВПО (внутрішньо переміщені особи)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="benefitOrphan" name="benefitOrphan">
+                                    <label class="form-check-label" for="benefitOrphan">
+                                        Сирота/напівсирота/під опікою
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="benefitDisability" name="benefitDisability">
+                                    <label class="form-check-label" for="benefitDisability">
+                                        Дитина з інвалідністю
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="benefitSocialRisk" name="benefitSocialRisk">
+                                    <label class="form-check-label" for="benefitSocialRisk">
+                                        СЖО (соціальний ризик)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" onclick="saveStudent()">Зберегти</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Student Modal -->
+<div class="modal fade" id="editStudentModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редагувати учня</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editStudentForm">
+                    <input type="hidden" id="editStudentId">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editFirstName" class="form-label">Ім'я *</label>
+                                <input type="text" class="form-control" id="editFirstName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLastName" class="form-label">Прізвище *</label>
+                                <input type="text" class="form-control" id="editLastName" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editBirthDate" class="form-label">День народження</label>
+                                <input type="date" class="form-control" id="editBirthDate">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="editAge" class="form-label">Вік</label>
+                                <input type="number" class="form-control" id="editAge" min="5" max="18">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="editGrade" class="form-label">Клас</label>
+                                <input type="text" class="form-control" id="editGrade">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editPhoneChild" class="form-label">Телефон дитини</label>
+                                <input type="tel" class="form-control" id="editPhoneChild"
+                                       pattern="[+]?[0-9]{10,15}" title="Введіть номер телефону (мінімум 10 цифр)" 
+                                       placeholder="+380501234567">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editLocation" class="form-label">Місце проживання</label>
+                                <input type="text" class="form-control" id="editLocation">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editAddress" class="form-label">Адреса проживання</label>
+                        <textarea class="form-control" id="editAddress" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editParentName" class="form-label">ПІБ батьків</label>
+                        <input type="text" class="form-control" id="editParentName">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editFatherName" class="form-label">ПІБ батька</label>
+                                <input type="text" class="form-control" id="editFatherName">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editMotherName" class="form-label">ПІБ матері</label>
+                                <input type="text" class="form-control" id="editMotherName">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editPhoneMother" class="form-label">Телефон матері</label>
+                                <input type="tel" class="form-control" id="editPhoneMother"
+                                       pattern="[+]?[0-9]{10,15}" title="Введіть номер телефону (мінімум 10 цифр)" 
+                                       placeholder="+380501234567">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editPhoneFather" class="form-label">Телефон батька</label>
+                                <input type="tel" class="form-control" id="editPhoneFather"
+                                       pattern="[+]?[0-9]{10,15}" title="Введіть номер телефону (мінімум 10 цифр)" 
+                                       placeholder="+380501234567">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editSettlementType" class="form-label">Тип населеного пункту</label>
+                                <select class="form-control" id="editSettlementType">
+                                    <option value="">Оберіть тип</option>
+                                    <option value="Село">Село</option>
+                                    <option value="СМТ">СМТ</option>
+                                    <option value="Місто">Місто</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editBenefitOther" class="form-label">Інші пільги та примітки</label>
+                                <input type="text" class="form-control" id="editBenefitOther">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Секція пільг -->
+                    <div class="mb-3">
+                        <label class="form-label">Категорії вразливості та пільги</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="editBenefitLowIncome">
+                                    <label class="form-check-label" for="editBenefitLowIncome">
+                                        Малозабезпечені
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="editBenefitLargeFamily">
+                                    <label class="form-check-label" for="editBenefitLargeFamily">
+                                        Багатодітні
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="editBenefitMilitaryFamily">
+                                    <label class="form-check-label" for="editBenefitMilitaryFamily">
+                                        Сім'я ЗСУ
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="editBenefitInternallyDisplaced">
+                                    <label class="form-check-label" for="editBenefitInternallyDisplaced">
+                                        ВПО (внутрішньо переміщені особи)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="editBenefitOrphan">
+                                    <label class="form-check-label" for="editBenefitOrphan">
+                                        Сирота/напівсирота/під опікою
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="editBenefitDisability">
+                                    <label class="form-check-label" for="editBenefitDisability">
+                                        Дитина з інвалідністю
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="editBenefitSocialRisk">
+                                    <label class="form-check-label" for="editBenefitSocialRisk">
+                                        СЖО (соціальний ризик)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" onclick="updateStudent()">Зберегти зміни</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Students Modal -->
+<div class="modal fade" id="importStudentsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Імпорт учнів з Excel файлу</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> Інструкції:</h6>
+                    <ul class="mb-0">
+                        <li>Скачайте шаблон Excel файлу</li>
+                        <li>Заповніть його даними учнів</li>
+                        <li>Завантажте заповнений файл для автоматичного імпорту</li>
+                        <li>Всі обов'язкові поля повинні бути заповнені</li>
+                    </ul>
+                </div>
+                
+                <form id="importStudentsForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="excelFile" class="form-label">Виберіть Excel файл *</label>
+                        <input type="file" class="form-control" id="excelFile" name="excelFile" 
+                               accept=".xlsx,.xls" required>
+                        <div class="form-text">Підтримувані формати: .xlsx, .xls</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="skipDuplicates" name="skipDuplicates" checked>
+                            <label class="form-check-label" for="skipDuplicates">
+                                Пропускати дублікати (по імені та прізвищу)
+                            </label>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Прогрес імпорту -->
+                <div id="importProgress" style="display: none;">
+                    <div class="progress mb-3">
+                        <div class="progress-bar" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div id="importStatus" class="text-muted"></div>
+                </div>
+                
+                <!-- Результати імпорту -->
+                <div id="importResults" style="display: none;">
+                    <div class="alert alert-success">
+                        <h6><i class="bi bi-check-circle"></i> Результати імпорту:</h6>
+                        <div id="importSummary"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-outline-primary" onclick="downloadStudentsTemplate()">
+                    <i class="bi bi-download"></i> Скачати шаблон
+                </button>
+                <button type="button" class="btn btn-success" onclick="importStudents()" id="importBtn">
+                    <i class="bi bi-cloud-upload"></i> Імпортувати
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Плаваючий горизонтальний скролбар -->
+<div class="sticky-scrollbar-container" id="stickyScrollbar">
+    <div class="sticky-scrollbar-label">📊 Прокрутка таблиці</div>
+    <div class="sticky-scrollbar" id="stickyScrollbarTrack">
+        <div class="sticky-scrollbar-thumb" id="stickyScrollbarThumb"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- JavaScript функції тепер в admin.js -->
+{% endblock %}
